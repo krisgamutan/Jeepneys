@@ -6,6 +6,7 @@ import com.google.android.gms.maps.model.LatLng;
  * Created by KrisEmmanuel on 9/19/2014.
  */
 public class Mapper {
+    // Mapper class
     public static final double calculateDistance(double paramDouble1, double paramDouble2, double paramDouble3, double paramDouble4)
     {
         if ((Math.abs(paramDouble2 - paramDouble4) < 1.0E-07D) && (Math.abs(paramDouble1 - paramDouble3) < 1.0E-07D))

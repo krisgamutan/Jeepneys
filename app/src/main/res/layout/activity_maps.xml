@@ -1,0 +1,165 @@
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical"
+    >
+    <!--
+    xmlns:tools="http://schemas.android.com/tools"
+    -->
+
+    <fragment
+        xmlns:map="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/map"
+
+        android:name="com.google.android.gms.maps.SupportMapFragment"
+        android:scrollbars="vertical"
+        />
+    <!--
+        tools:context=".MapsActivity"
+
+        map:cameraTargetLat="10.295264"
+        map:cameraTargetLng="123.880506"
+        map:cameraZoom="13"
+        map:mapType="normal"
+        map:uiCompass="true"
+        map:uiRotateGestures="true"
+        map:uiScrollGestures="true"
+        map:uiTiltGestures="true"
+        map:uiZoomControls="true"
+        map:uiZoomGestures="true" -->
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        >
+
+        <TextView
+            android:layout_gravity="left|center_vertical"
+            android:text="Location:"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+        <EditText
+            android:id="@+id/editTextLocation"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center|center_vertical"
+            android:ems="10"
+            android:hint="@string/search"
+            />
+        <!--
+            android:maxLines="1"
+            android:imeOptions="actionDone"
+
+         -->
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/btnGo"
+            android:text="Go"
+            android:onClick="geoLocate"
+            />
+
+    </LinearLayout>
+
+    <RelativeLayout
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent">
+
+        <LinearLayout
+            android:layout_alignParentBottom="true"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            >
+
+            <TextView
+                android:id="@+id/tv_debugText"
+                android:text="Debug Text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <LinearLayout
+                android:id="@+id/layer_plotting"
+                android:background="#d1d1d1"
+                android:alpha="0.9"
+                android:visibility="gone"
+                android:orientation="vertical"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content">
+
+                <TextView
+                    android:id="@+id/tv_plottingStatusText"
+                    android:text=""
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <EditText
+                    android:text=""
+                    android:hint="route number"
+                    android:id="@+id/editTextRouteNumber"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content" />
+                <EditText
+                    android:text=""
+                    android:hint="route description"
+                    android:id="@+id/editTextRouteDescription"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content" />
+
+                <LinearLayout
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content">
+                    <Button
+                        android:text="Undo"
+                        android:gravity="right"
+                        android:id="@+id/btn_plottingUndo"
+                        android:onClick="plottingUndoLastMarker"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                    <Button
+                        android:gravity="right"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Save in SQLite"
+                        android:id="@+id/btn_saveInSQLite"
+                        />
+
+                    </LinearLayout>
+
+
+                </LinearLayout>
+
+            <LinearLayout
+                android:orientation="horizontal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+
+                <ToggleButton
+                    android:id="@+id/toggle_plotting"
+                    android:textOn="Plot On"
+                    android:textOff="Plot Off"
+                    android:onClick="onTogglePlottingClicked"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+
+                </LinearLayout>
+
+
+
+
+        </LinearLayout>
+
+    </RelativeLayout>
+
+
+
+
+</RelativeLayout>
+

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Jeepneys</string>
+    <string name="title_activity_maps">Map</string>
+    <string name="title_activity_my">Jeepneys!</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="app_ver">v0.0.1 (build 23)</string>
+    <string name="team_copyright">Jeepneys! (c) Team A-G.L.T. "Agility"</string>
+    <string name="from">From</string>
+    <string name="to">To</string>
+    <string name="search">Search</string>
+    <string name="location">Location</string>
+    <string name="longitude">Longitude</string>
+    <string name="latitude">Latitude</string>
+    <string name="get_route">Get Route</string>
+    <string name="goto_location">Go</string>
+    <string name="english">English</string>
+    <string name="cebuano">Cebuano</string>
+    <string name="tagalog">Tagalog</string>
+    <string name="jeep_routes">Jeepney Routes</string>
+    <string name="favorites">Favorites</string>
+    <string name="settings">Settings</string>
+    <string name="map">Map</string>
+    <string name="title_activity_gpslicense">GPSLicenseActivity</string>
+
+</resources>

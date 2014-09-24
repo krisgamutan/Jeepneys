@@ -196,6 +196,14 @@ public class JeepneysDbHelper extends SQLiteOpenHelper
                 "REFERENCES " + PointEntry.TABLE_NAME + "(" + PointEntry._ID + ")" +
                 ");";
 
+        db.execSQL(SQL_CREATE_ROUTE_TABLE);
+        db.execSQL(SQL_CREATE_JEEPNEY_TABLE);
+        db.execSQL(SQL_CREATE_POINT_TABLE);
+        db.execSQL(SQL_CREATE_VECTOR_TABLE);
+        db.execSQL(SQL_CREATE_WAYPOINT_TABLE);
+        db.execSQL(SQL_CREATE_PATH_TABLE);
+        db.execSQL(SQL_CREATE_LOCATION_TABLE);
+
     }
 
     @Override

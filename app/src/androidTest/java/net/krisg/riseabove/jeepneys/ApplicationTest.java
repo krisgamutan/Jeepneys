@@ -49,8 +49,8 @@ public class ApplicationTest extends ApplicationTestCase<Application> {
     ContentValues getPointContentValues()
     {
         ContentValues values = new ContentValues();
-        values.put(JeepneysContract.PointEntry.COLUMN_LATITUDE, 7.7);
-        values.put(JeepneysContract.PointEntry.COLUMN_LONGITUDE, 125.33);
+        values.put(JeepneysContract.VertexEntry.COLUMN_LATITUDE, 10.306264000000001);
+        values.put(JeepneysContract.VertexEntry.COLUMN_LONGITUDE, 123.89308);
         return values;
     }
 
@@ -64,12 +64,32 @@ public class ApplicationTest extends ApplicationTestCase<Application> {
         long pointRowId = -1;
         try
         {
-            pointRowId = db.insertOrThrow(JeepneysContract.PointEntry.TABLE_NAME, null, values);
+            pointRowId = db.insertOrThrow(JeepneysContract.VertexEntry.TABLE_NAME, null, values);
         }catch(SQLException e) // THIS IS android.database.SQLException, NOT the java.sql...
         {
             Log.d(LOG_TAG, e.getMessage());
         }
         assertTrue(pointRowId != -1);
         Log.d(LOG_TAG, "New row id: " + pointRowId);
+
+
+        String[] columns = {
+                JeepneysContract.VertexEntry.COLUMN_LATITUDE,
+                JeepneysContract.VertexEntry.COLUMN_LONGITUDE
+        };
+        Cursor cursor = db.query(
+                JeepneysContract.VertexEntry.TABLE_NAME,
+                columns,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+        if(cursor.moveToFirst())
+        {
+            validateCursor(values,cursor);
+        }
+
     }
 }

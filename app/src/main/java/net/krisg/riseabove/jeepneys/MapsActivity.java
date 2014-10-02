@@ -1,7 +1,11 @@
 package net.krisg.riseabove.jeepneys;
 
 import android.app.Dialog;
+import android.content.ContentValues;
 import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.database.SQLException;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
@@ -9,6 +13,7 @@ import android.location.Location;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v4.app.FragmentActivity;
+import android.util.Log;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
@@ -28,15 +33,27 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 
+import net.krisg.riseabove.jeepneys.data.DEdge;
+import net.krisg.riseabove.jeepneys.data.DVertex;
+import net.krisg.riseabove.jeepneys.data.Edge;
+import net.krisg.riseabove.jeepneys.data.JeepneysContract;
+import net.krisg.riseabove.jeepneys.data.JeepneysDbHelper;
+import net.krisg.riseabove.jeepneys.data.Path;
+import net.krisg.riseabove.jeepneys.data.Route;
+import net.krisg.riseabove.jeepneys.data.Vertex;
+import net.krisg.riseabove.jeepneys.data.Waypoint;
 import net.krisg.riseabove.jeepneys.utilities.GooglePlayServiceUtility;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,16 +61,620 @@ public class MapsActivity extends FragmentActivity implements
         GooglePlayServicesClient.ConnectionCallbacks,
         GooglePlayServicesClient.OnConnectionFailedListener,
         LocationListener
-
 {
-    boolean mapPlottingMode = false;
+    private static final String LOG_TAG = MapsActivity.class.getSimpleName();
+
+
+    private GoogleMap mMap; // Might be null if Google Play services APK is not available.
+
+    private static final int GPS_ERRORDIALOG_REQUEST = 9001;
+
+    LocationClient mLocationClient;
+    private boolean autodetectOrigin = true;
+    private LatLng lastLocation = null; // use in onLocationChange to minimize refreshing of originMarker
+
+    Marker marker; // misc marker used to mark searched result location
+    Marker originMarker; // used for the origin location
+    Marker destinationMarker; // used for the destination location
+    Polyline originToDestinationLine;
+
+    @SuppressWarnings("unused")
+    private static final double
+            LOC_CITU_LAT = 10.295264,
+            LOC_CITU_LNG = 123.880506;
+    private static final float MAP_DEFAULTZOOM = 11;
+    private static final float MAP_PREFEREDZOOM = 15;
+
+    boolean editRoutesMode = false;
+    boolean editVertexMode = false;
+
+    Circle originCircle;
+    Circle destinationCircle;
+    private static final double defaultFindRadius = 150.0;
+    private double originRadius = defaultFindRadius;
+    private double destinationRadius = defaultFindRadius; // meters
+    private static final double radiusIncrement = 10.0;
+
+    ArrayList<Marker> mapVertexMarkers = new ArrayList<Marker>();
+    int mapVertexMarkers_indexNearestToOrigin = -1;
+    int mapVertexMarkers_indexNearestToDestination = -1;
+
     ArrayList<Marker> plottingMarkers = new ArrayList<Marker>();
     Polyline plottingLine;
     private double plottingTotalDist = 0.0;
 
-    private void drawPlottingLineGuide()
+
+    ArrayList<Marker> editVertexNewMarkers = new ArrayList<Marker>();
+
+    int ico_mapVertex = R.drawable.ic_circleadd2;
+    int ico_addVertex = R.drawable.ic_circleadd;
+    int ico_addRoute = R.drawable.silvergreen_marker_icon;
+
+    int ico_originMarker = R.drawable.ic_grayuser;
+    int ico_originMarkerAutodetectLocation = R.drawable.ic_blueball;
+
+    public void editVertexRefresh(View view)
+    {
+        readMapVertex(true);
+    }
+
+    private void readMapVertex(boolean visible)
+    {
+        JeepneysDbHelper dbHelper = new JeepneysDbHelper(this);
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+
+        String[] columns = {
+                JeepneysContract.VertexEntry._ID,
+                JeepneysContract.VertexEntry.COLUMN_LATITUDE,
+                JeepneysContract.VertexEntry.COLUMN_LONGITUDE
+        };
+        Cursor cursor = db.query(
+                JeepneysContract.VertexEntry.TABLE_NAME,
+                columns,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+        double lat,lng;
+
+        //clearMapVertex();
+        MarkerOptions markerOptions;
+
+        cursor.moveToFirst();
+        while(cursor.isAfterLast() == false)
+        {
+            lat = cursor.getDouble(cursor.getColumnIndex(JeepneysContract.VertexEntry.COLUMN_LATITUDE));
+            lng = cursor.getDouble(cursor.getColumnIndex(JeepneysContract.VertexEntry.COLUMN_LONGITUDE));
+
+            markerOptions = new MarkerOptions()
+                    //.title( cursor.getString(cursor.getColumnIndex(JeepneysContract.VertexEntry._ID)) )
+                    //.title("Vertex#:" + cursor.getString(cursor.getColumnIndex(JeepneysContract.VertexEntry._ID)) +" lat:" + lat + ",lng:" + lng)
+                    .position(new LatLng(lat,lng))
+                    .anchor(.5f,.5f)
+                    .visible(visible)
+                    .icon(BitmapDescriptorFactory.fromResource(ico_mapVertex));
+
+            mapVertexMarkers.add(mMap.addMarker(markerOptions));
+
+
+            cursor.moveToNext();
+        }
+
+        cursor.close();
+        db.close();
+    }
+    private void displayMapPoints()
+    {
+        for(int i=0; i < mapVertexMarkers.size(); i++)
+        {
+
+        }
+
+    }
+    private void clearMapVertex()
+    {
+        if(mapVertexMarkers.size()>0)
+        {
+            for(int i= mapVertexMarkers.size()-1; i > -1; i--)
+            {
+                mapVertexMarkers.get(i).remove();
+                mapVertexMarkers.remove(i);
+            }
+
+        }
+    }
+    public void editVertexClear(View view)
+    {
+        clearMapVertex();
+    }
+
+    private void addNewVertex(LatLng latLng)
+    {
+        MarkerOptions markerOptions = new MarkerOptions()
+                //.title("Vertex lat:" + latLng.latitude + ",lng:" + latLng.longitude)
+                .position(latLng)
+                .anchor(.5f,.5f)
+                //.infoWindowAnchor(.2f,.3f)
+                .icon(BitmapDescriptorFactory.fromResource(ico_addVertex))
+                ;
+        editVertexNewMarkers.add(mMap.addMarker(markerOptions));
+        editVertexStatusText();
+    }
+    private void clearEditVertex()
     {
 
+        if(editVertexNewMarkers.size()>0)
+        {
+            for(int i= editVertexNewMarkers.size()-1; i > -1; i--)
+            {
+                editVertexNewMarkers.get(i).remove();
+                editVertexNewMarkers.remove(i);
+            }
+
+        }
+
+        editVertexStatusText();
+    }
+    private void editVertexStatusText()
+    {
+
+        String str = "#NewVertices:" + editVertexNewMarkers.size();
+
+        TextView statusText = (TextView) findViewById(R.id.tv_editPointsStatusText);
+        statusText.setText(str);
+    }
+    public void editVertexUndoLastMarker(View view)
+    {
+        if(editVertexNewMarkers.size() > 0)
+        {
+            editVertexNewMarkers.get(editVertexNewMarkers.size() - 1).remove();
+            editVertexNewMarkers.remove(editVertexNewMarkers.size() - 1);
+            editVertexStatusText();
+        }
+
+    }
+    public void editVertexCommit(View view)
+    {
+        JeepneysDbHelper dbHelper = new JeepneysDbHelper(this);
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+
+        ContentValues values;
+
+        long vertexRowId = -1;
+        double lat,lng;
+        String sql;
+        for(int i=0; i< editVertexNewMarkers.size(); i++)
+        {
+            lat = editVertexNewMarkers.get(i).getPosition().latitude;
+            lng = editVertexNewMarkers.get(i).getPosition().longitude;
+
+
+            if(Vertex.isVertexCoordinateUnique(db, lat, lng)) // Add only if point with latlng is not in the table
+            {
+                values = Vertex.makeContentValues(lat, lng);
+                try
+                {
+                    vertexRowId = db.insertOrThrow(JeepneysContract.VertexEntry.TABLE_NAME, null, values);
+                }catch(SQLException e)
+                {
+                    Log.d(LOG_TAG, e.getMessage());
+                }
+
+            }
+            else
+            {
+                toastMsg("A point on that coordinate already exists.");
+            }
+
+
+
+        }
+
+        db.close();
+
+    }
+
+
+
+
+    public void editRoutesCommit(View view)
+    {
+        JeepneysDbHelper dbHelper = new JeepneysDbHelper(this);
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+
+        // check fields
+        EditText editText_routeNumber = (EditText)findViewById(R.id.editTextRouteNumber);
+        EditText editText_description = (EditText)findViewById(R.id.editTextPathDescription);
+
+        String routeNumber = editText_routeNumber.getText().toString().trim();
+        String pathDescription = editText_description.getText().toString().trim();
+
+
+
+        if(routeNumber.isEmpty())
+        {
+            toastMsg("please fill the route number");
+            return;
+        }
+        if(pathDescription.trim().isEmpty())
+        {
+            toastMsg("please fill the path description");
+            return;
+        }
+        if(plottingMarkers.size() < 2)
+        {
+            toastMsg("Error, there is no paths drawn");
+            return;
+        }
+
+
+        // Adding of Edge
+        double distance;
+        long targetVertexId;
+        long sourceVertexId;
+        ContentValues edgeValues;
+        long newEdgeRowId = -1;
+
+        ArrayList<Edge> newWaypointEdges = new ArrayList<Edge>();
+
+        double sourceVertexLat, sourceVertexLng, targetVertexLat, targetVertexLng;
+        Vertex sourceVertex, targetVertex;
+
+        for(int i=0; i < plottingMarkers.size() - 1; i++)
+        {
+
+            // 1 2
+            // 0 1
+            //
+            distance = Mapper.distVincenty(plottingMarkers.get(i).getPosition(), plottingMarkers.get(i+1).getPosition());
+
+            sourceVertexLat = plottingMarkers.get(i).getPosition().latitude;
+            sourceVertexLng = plottingMarkers.get(i).getPosition().longitude;
+            targetVertexLat = plottingMarkers.get(i+1).getPosition().latitude;
+            targetVertexLng = plottingMarkers.get(i+1).getPosition().longitude;
+
+            // These vertices must already exist.
+            sourceVertexId = Vertex.getVertexId(db, sourceVertexLat, sourceVertexLng);
+            targetVertexId = Vertex.getVertexId(db, targetVertexLat, targetVertexLng);
+
+            if(Edge.isEdgeExists(db, sourceVertexId, targetVertexId))
+            {
+                // If edge already exists use existing edge ID
+                newEdgeRowId = Edge.getEdgeId(db, sourceVertexId, targetVertexId);
+            }
+            else
+            {
+                // create new edge, and use it's new edge ID
+                edgeValues = Edge.makeContentValues(distance, sourceVertexId, targetVertexId);
+                try
+                {
+                    newEdgeRowId = db.insertOrThrow(JeepneysContract.EdgeEntry.TABLE_NAME, null, edgeValues);
+                }catch(SQLException e)
+                {
+                    Log.d(LOG_TAG, e.getMessage());
+                }
+            }
+
+
+
+
+            sourceVertex = new Vertex(sourceVertexId, new BigDecimal(Double.toString(sourceVertexLat)), new BigDecimal(Double.toString(sourceVertexLng)));
+            targetVertex = new Vertex(targetVertexId, new BigDecimal(Double.toString(targetVertexLat)), new BigDecimal(Double.toString(targetVertexLng)));
+
+            if(newEdgeRowId != -1)
+            {
+                newWaypointEdges.add(new Edge(newEdgeRowId, sourceVertex, targetVertex, new BigDecimal(Double.toString(distance))));
+            }
+        }
+
+
+        // Adding of Route
+        long idRoute = Route.getRouteId(db, routeNumber);
+
+        ContentValues routeValues;
+        long newRouteRowId = -1;
+
+
+        if(idRoute != -1)
+        {
+            // already exists
+            ;
+        }
+        else
+        {
+            // register new Route number
+            routeValues = Route.makeContentValues(routeNumber);
+            try
+            {
+                newRouteRowId = db.insertOrThrow(JeepneysContract.RouteEntry.TABLE_NAME, null, routeValues);
+            }catch(SQLException e)
+            {
+                Log.d(LOG_TAG, e.getMessage());
+            }
+        }
+
+        // Adding of Waypoint
+        ContentValues waypointValues;
+
+        long testWaypointRowId = -1;
+
+
+        long newWaypointRowId = Waypoint.getMaxId(db) + 1; // +1 to increment the id, Waypoint table is not auto increment
+
+        Waypoint newWaypoint = new Waypoint(newWaypointRowId, newWaypointEdges);
+
+        for(int i=0; i < newWaypoint.getEdges().size(); i++)
+        {
+            waypointValues = Waypoint.makeContentValues(newWaypointRowId, i, newWaypoint.getEdges().get(i).getId());
+            try
+            {
+                testWaypointRowId = db.insertOrThrow(JeepneysContract.WaypointEntry.TABLE_NAME, null, waypointValues);
+
+                if(testWaypointRowId != newWaypointRowId)
+                {
+                    Log.d(LOG_TAG, "testWaypointRowId:" + testWaypointRowId + " and newWaypointRowId:" + newWaypointRowId +" NOT EQUAL!!!");
+                }
+
+            }catch(SQLException e)
+            {
+                Log.d(LOG_TAG, e.getMessage());
+            }
+
+        }
+        if(testWaypointRowId == -1)
+        {
+            Log.d(LOG_TAG, "testWaypointRowId is -1");
+        }
+
+
+        String debug1 = "NEW routeId:" + newRouteRowId + " wpId:" + newWaypointRowId  + "desc:" + pathDescription;
+        Log.d(LOG_TAG, debug1);
+
+        // Adding of Path
+        ContentValues pathValues;
+        long newPathRowId = Path.getMaxId(db) + 1; // manual set of ID
+
+        long testNewPathRowId = -1;
+
+
+        pathValues = Path.makeContentValues(newPathRowId, newRouteRowId, newWaypointRowId, pathDescription);
+        try
+        {
+            testNewPathRowId = db.insertOrThrow(JeepneysContract.PathEntry.TABLE_NAME, null, pathValues);
+
+            if(testNewPathRowId != newPathRowId)
+            {
+                Log.e(LOG_TAG, "testNewPathRowId IS NOT EQUAL to newPathRowId");
+
+            }
+
+        }catch(SQLException e)
+        {
+            Log.d(LOG_TAG, e.getMessage());
+        }
+        if(newPathRowId == -1)
+        {
+            Log.d(LOG_TAG, "newPathRowId is -1");
+        }
+
+
+        //toastMsg(test);
+        db.close();
+    }
+
+    ArrayList<DVertex> mapDVertices = new ArrayList<DVertex>();
+
+    ArrayList<Marker> calcPathMarkers = new ArrayList<Marker>();
+    Polyline calcPathLine;
+
+    private void markCalcPath(List<DVertex> path)
+    {
+        clearCalcPathMarkers();
+
+        JeepneysDbHelper dbHelper = new JeepneysDbHelper(this);
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+
+        for(int i=0; i < path.size(); i++)
+        {
+            String[] latLangString = Vertex.queryId(db, path.get(i).vertexId);
+            ;
+            LatLng latLng = new LatLng(Double.parseDouble(latLangString[0]), Double.parseDouble(latLangString[1]));
+
+            MarkerOptions markerOptions = new MarkerOptions()
+                    //.title("Origin Marker")
+                    .position(latLng)
+                    .draggable(false)
+                    .position(latLng)
+                    .anchor(.5f, .5f)
+                            //.snippet("This is your origin marker")
+                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_system_red))
+                    ;
+            calcPathMarkers.add(mMap.addMarker(markerOptions));
+        }
+    }
+    private void clearCalcPathMarkers()
+    {
+        if(calcPathMarkers.size()>0)
+        {
+            for(int i= calcPathMarkers.size()-1; i > -1; i--)
+            {
+                calcPathMarkers.get(i).remove();
+                calcPathMarkers.remove(i);
+            }
+        }
+        if(calcPathLine != null)
+        {
+            calcPathLine.remove();
+            calcPathLine = null;
+
+        }
+    }
+
+    private void drawCalcPathLineGuide()
+    {
+
+        if(calcPathLine != null)
+        {
+            calcPathLine.remove();
+            calcPathLine = null;
+
+        }
+
+        PolylineOptions options = new PolylineOptions()
+                .width(7)
+                .geodesic(true)
+                .color(Color.GREEN);
+        if(calcPathMarkers.size() > 1) // needs to be more than 1 marker
+        {
+            for(int i=0; i < calcPathMarkers.size(); i++)
+            {
+                options.add(calcPathMarkers.get(i).getPosition());
+            }
+            calcPathLine = mMap.addPolyline(options);
+
+        }
+
+    }
+
+    private void populate_mapDVertices_vertex()
+    {
+        JeepneysDbHelper dbHelper = new JeepneysDbHelper(this);
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+
+        String[] columns = {
+                JeepneysContract.VertexEntry._ID
+        };
+        Cursor cursor = db.query(
+                JeepneysContract.VertexEntry.TABLE_NAME,
+                columns,
+                null, // selection
+                null, // selectionArgs
+                null, // groupBy
+                null, // having
+                null // orderBy
+        );
+        if(cursor.getCount() <= 0)
+        {
+            cursor.close();
+            db.close();
+            return;
+        }
+
+        // populate mapDVertices with the database vertex table, idVertex
+        for (cursor.moveToFirst(); !cursor.isAfterLast(); cursor.moveToNext())
+        {
+            long vertexId = cursor.getLong(cursor.getColumnIndex(JeepneysContract.VertexEntry._ID));
+            DVertex vertex = new DVertex(vertexId);
+            if(!mapDVertices.contains(vertex))
+            {
+                mapDVertices.add(vertex);
+            }
+        }
+        cursor.close();
+
+        db.close();
+    }
+    private void populate_mapDVertices_adjacencies()
+    {
+        JeepneysDbHelper dbHelper = new JeepneysDbHelper(this);
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+
+        String[] columns = {
+                JeepneysContract.EdgeEntry.COLUMN_DISTANCE,
+                JeepneysContract.EdgeEntry.COLUMN_VERTEX_IDVERTEXTARGET
+        };
+
+        String whereClause = JeepneysContract.EdgeEntry.COLUMN_VERTEX_IDVERTEXSOURCE + "=?";
+
+        String[] whereArgs;
+        Cursor cursor;
+
+        // populate mapDVertices adjacencies with DEdge's
+        for(int i=0; i < mapDVertices.size(); i++)
+        {
+            whereArgs = new String[] {
+                    Long.toString( mapDVertices.get(i).vertexId ) // Where element i is the source, get all it's target
+            };
+            cursor = db.query(
+                    JeepneysContract.EdgeEntry.TABLE_NAME,
+                    columns,
+                    whereClause, // selection
+                    whereArgs, // selectionArgs
+                    null, // groupBy
+                    null, // having
+                    null // orderBy
+            );
+
+            for (cursor.moveToFirst(); !cursor.isAfterLast(); cursor.moveToNext())
+            {
+                double distance = Double.parseDouble(cursor.getString(cursor.getColumnIndex(JeepneysContract.EdgeEntry.COLUMN_DISTANCE)));
+                long targetVertexId = cursor.getLong(cursor.getColumnIndex(JeepneysContract.EdgeEntry.COLUMN_VERTEX_IDVERTEXTARGET));
+
+                // Find from mapDVertices to get DVertex element with vertexId of targetVertexId
+                // then put it in the element i adjacencies
+                for(int j=0; j < mapDVertices.size(); j++)
+                {
+                    if(mapDVertices.get(j).vertexId == targetVertexId)
+                    {
+                        DVertex edgeTarget = mapDVertices.get(j);
+                        DEdge newDEdge = new DEdge(edgeTarget, distance);
+
+                        if(!mapDVertices.get(i).adjacencies.contains(newDEdge))
+                        {
+                            mapDVertices.get(i).adjacencies.add(newDEdge);
+                        }
+                    }
+                }
+
+            }
+            cursor.close();
+        }
+        db.close();
+    }
+
+
+
+
+    private Polyline plotWaypoint(long id)
+    {
+        Polyline wpPolyLine = null;
+        JeepneysDbHelper dbHelper = new JeepneysDbHelper(this);
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+
+        Waypoint wp = Waypoint.getWaypoint(db, id);
+
+        if(wp != null)
+        {
+            PolylineOptions options = new PolylineOptions()
+                    .width(4)
+                    .color(Color.GREEN);
+
+            //options.add
+            options.add(wp.getEdge(0).getSource().getPosition());
+            for(int i=0; i < wp.getEdges().size() ; i++)
+            {
+
+                //Log.d(LOG_TAG, "edge i:" + i + "id:" +wp.getEdges().get(i).toString() );
+                options.add(wp.getEdge(i).getTarget().getPosition()); // adds element i's target.
+            }
+            wpPolyLine = mMap.addPolyline(options);
+
+        }
+
+
+
+        db.close();
+
+        return wpPolyLine;
+    }
+
+
+    private void drawRoutePlottingLineGuide()
+    {
         if(plottingLine != null)
         {
             plottingLine.remove();
@@ -64,7 +685,7 @@ public class MapsActivity extends FragmentActivity implements
         PolylineOptions options = new PolylineOptions()
                 .width(3)
                 .color(Color.BLUE);
-        if(plottingMarkers.size() > 1)
+        if(plottingMarkers.size() > 1) // needs to be more than 1 marker
         {
             for(int i=0; i < plottingMarkers.size(); i++)
             {
@@ -75,7 +696,7 @@ public class MapsActivity extends FragmentActivity implements
         }
 
     }
-    private void calcPlottingTotalDistance()
+    private void calcRoutePlottingTotalDistance()
     {
         plottingTotalDist = 0.0;
 
@@ -96,7 +717,8 @@ public class MapsActivity extends FragmentActivity implements
                             plottingMarkers.get(i).getPosition().latitude,
                             plottingMarkers.get(i).getPosition().longitude
                     );*/
-                    plottingTotalDist += Mapper.calculationByDistance(prevLatlng, plottingMarkers.get(i).getPosition());
+                    // plottingTotalDist += Mapper.calculationByDistance(prevLatlng, plottingMarkers.get(i).getPosition());
+                    plottingTotalDist += Mapper.distVincenty(prevLatlng, plottingMarkers.get(i).getPosition());
 
                 }
                 //prevLat = plottingMarkers.get(i).getPosition().latitude;
@@ -106,7 +728,7 @@ public class MapsActivity extends FragmentActivity implements
         }
 
     }
-    private void clearPlotting()
+    private void clearRoutePlotting()
     {
         plottingTotalDist = 0.0;
         if(plottingMarkers.size()>0)
@@ -126,30 +748,49 @@ public class MapsActivity extends FragmentActivity implements
         }
         plottingStatusText();
     }
-    private void addPlottingMarker(LatLng latLng)
+    private void addRouteMarker(Marker marker)
     {
+        // Not to add new markers that has the same positions as the elements in the list
+        if(checkMarkerPositionAlreadyInList(plottingMarkers,marker))
+        {
+            return;
+        }
+
         MarkerOptions markerOptions = new MarkerOptions()
                 //.title("Origin Marker")
-                .position(latLng)
-                //.draggable(true)
-                //.anchor(.5f,.5f)
-                //.snippet("This is your origin marker")
-                .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_red_pin))
+                .position(marker.getPosition())
+                        //.draggable(true)
+                        //.anchor(.5f,.5f)
+                        //.snippet("This is your origin marker")
+                .icon(BitmapDescriptorFactory.fromResource(ico_addRoute))
                 ;
-
-
 
         plottingMarkers.add(mMap.addMarker(markerOptions));
 
-        drawPlottingLineGuide();
-        calcPlottingTotalDistance();
+        drawRoutePlottingLineGuide();
+        calcRoutePlottingTotalDistance();
         plottingStatusText();
-
     }
+    private boolean checkMarkerPositionAlreadyInList(ArrayList<Marker> markerList, Marker marker)
+    {
+        for(Marker m: markerList)
+        {
+            if(m.getPosition().latitude == marker.getPosition().latitude &&
+                    m.getPosition().longitude == marker.getPosition().longitude
+                    )
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
     private void plottingStatusText()
     {
 
-        String str = "#Markers:" + plottingMarkers.size() + " TotalDist:" + plottingTotalDist + "km";
+        //String str = "#Markers:" + plottingMarkers.size() + " TotalDist:" + plottingTotalDist + "km";
+        String str = "#Markers:" + plottingMarkers.size() + " TotalDist:" + plottingTotalDist + "m";
 
         TextView plottingStatusText = (TextView) findViewById(R.id.tv_plottingStatusText);
         plottingStatusText.setText(str);
@@ -160,36 +801,14 @@ public class MapsActivity extends FragmentActivity implements
         {
             plottingMarkers.get(plottingMarkers.size() - 1).remove();
             plottingMarkers.remove(plottingMarkers.size() - 1);
-            drawPlottingLineGuide();
+            drawRoutePlottingLineGuide();
             plottingStatusText();
-            calcPlottingTotalDistance();
+            calcRoutePlottingTotalDistance();
         }
 
     }
-    private void removePlottingMarker(Marker marker)
-    {
-        plottingMarkers.remove((Marker)marker);
-    }
 
 
-    private GoogleMap mMap; // Might be null if Google Play services APK is not available.
-
-    private static final int GPS_ERRORDIALOG_REQUEST = 9001;
-
-    LocationClient mLocationClient;
-
-    Marker marker; // misc marker used to mark searched result location
-    Marker originMarker; // used for the origin location
-    Marker destinationMarker; // used for the destination location
-
-    Polyline originToDestinationLine;
-
-    @SuppressWarnings("unused")
-    private static final double
-            LOC_CITU_LAT = 10.295264,
-            LOC_CITU_LNG = 123.880506;
-    private static final float MAP_DEFAULTZOOM = 11;
-    private static final float MAP_PREFEREDZOOM = 15;
 
     @Override
     protected void onStop() {
@@ -210,11 +829,42 @@ public class MapsActivity extends FragmentActivity implements
             setUpMapIfNeeded();
         }*/
         setUpMapIfNeeded();
-
-
-
     }
 
+    private int highlightNearestVertextWithinMarker(Marker marker, double radius)
+    {
+        // This returns the index of the nearest marker
+
+        if(mapVertexMarkers == null || mapVertexMarkers.isEmpty() || marker == null)
+        {
+            return -1;
+        }
+        int nearestToMarkerIndex = -1;
+        double nearestToMarkerDistance = Double.POSITIVE_INFINITY;
+        double dist;
+
+        for(int i=0; i< mapVertexMarkers.size(); i++)
+        {
+            if(Mapper.isInsideRadius(marker.getPosition(), radius, mapVertexMarkers.get(i).getPosition()))
+            {
+                dist = (Mapper.distVincenty(marker.getPosition(), mapVertexMarkers.get(i).getPosition()));
+
+                // update nearest vertex
+                if(nearestToMarkerDistance > dist)
+                {
+                    nearestToMarkerDistance = dist;
+                    nearestToMarkerIndex = i;
+                }
+
+            }
+
+        }
+        if(nearestToMarkerIndex != -1)
+        {
+            mapVertexMarkers.get(nearestToMarkerIndex).setIcon(BitmapDescriptorFactory.fromResource(R.drawable.ic_cross));
+        }
+        return nearestToMarkerIndex;
+    }
 
 
     @Override
@@ -307,7 +957,8 @@ public class MapsActivity extends FragmentActivity implements
                     .getMap();
             // Check if we were successful in obtaining the map.
             if (mMap != null) {
-
+                mMap.getUiSettings().setZoomControlsEnabled(false);
+                /*
                 // Info window
                 mMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter()
                 {
@@ -336,7 +987,7 @@ public class MapsActivity extends FragmentActivity implements
 
                         return v;
                     }
-                });
+                });*/
 
                 mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
                     @Override
@@ -352,21 +1003,26 @@ public class MapsActivity extends FragmentActivity implements
                         String toastString = addressToString(address);
                         Toast.makeText(MapsActivity.this, toastString, Toast.LENGTH_SHORT).show();
                         */
-                        if(mapPlottingMode)
-                        {
-                            addPlottingMarker(latLng);
 
-                        }
-                        else
+                        if(editVertexMode)
                         {
+                            addNewVertex(latLng);
+                        }
+                        else if(!editVertexMode && !editRoutesMode)
+                        {
+                            // if mapVertexMarkers isnt in the map, init it but hidden. Used for origin and destination nearest markers
+                            if(mapVertexMarkers.isEmpty())
+                            {
+                                readMapVertex(false);
+                            }
+
                             MapsActivity.this.setDestinationMarker(latLng.latitude,latLng.longitude);
+                            // FOR TESTING
+                            //String toastString = "Lat:" + latLng.latitude + ", Long:" + latLng.longitude;
+                            //Toast.makeText(MapsActivity.this, toastString, Toast.LENGTH_SHORT).show();
                         }
 
 
-                        // FOR TESTING
-                        String toastString = "Lat:" + latLng.latitude + ", Long:" + latLng.longitude;
-
-                        Toast.makeText(MapsActivity.this, toastString, Toast.LENGTH_SHORT).show();
 
 
                     }
@@ -382,21 +1038,33 @@ public class MapsActivity extends FragmentActivity implements
                         String toastString = addressToString(address);
                         Toast.makeText(MapsActivity.this, toastString, Toast.LENGTH_SHORT).show();
                         */
-                        if(!mapPlottingMode)
+                        if(!editRoutesMode && !editVertexMode)
                         {
+                            // if mapVertexMarkers isnt in the map, init it but hidden. Used for origin and destination nearest markers
+                            if(mapVertexMarkers.isEmpty())
+                            {
+                                readMapVertex(false);
+                            }
+
                             MapsActivity.this.setOriginMarker(latLng.latitude, latLng.longitude);
+                            // FOR TESTING
+                            String toastString = "Lat:" + latLng.latitude + ", Long:" + latLng.longitude;
                         }
-
-
-                        // FOR TESTING
-                        String toastString = "Lat:" + latLng.latitude + ", Long:" + latLng.longitude;
-
                     }
                 });
 
                 mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
                     @Override
                     public boolean onMarkerClick(Marker marker) {
+
+                        if(editRoutesMode)
+                        {
+                            addRouteMarker(marker);
+
+                            marker.hideInfoWindow();
+                            return true;
+
+                        }
                         return false;
                     }
                 });
@@ -449,6 +1117,8 @@ public class MapsActivity extends FragmentActivity implements
         }
     }
 
+
+
     private List<Address> getGeocode(LatLng latLng)
     {
         Geocoder gc = new Geocoder(MapsActivity.this);
@@ -481,9 +1151,35 @@ public class MapsActivity extends FragmentActivity implements
             originToDestinationLine.remove();
             originToDestinationLine = null;
         }
+        if(originCircle != null)
+        {
+            originCircle.remove();
+            originCircle = null;
+        }
+        if(destinationCircle != null)
+        {
+            destinationCircle.remove();
+            destinationCircle = null;
+        }
     }
+
+    private Circle drawCircle(LatLng latLng,double radius,int fillColor,int strokeColor,int strokeWidth)
+    {
+        CircleOptions circleOptions = new CircleOptions()
+                .center(latLng)
+                .radius(radius)
+                .fillColor(fillColor)
+                .strokeColor(strokeColor)
+                .strokeWidth(strokeWidth)
+                ;
+        return mMap.addCircle(circleOptions);
+    }
+
     private void setOriginMarker(double lat, double lng)
     {
+        LatLng latLng = new LatLng(lat,lng);
+
+
         if(originMarker != null)
         {
             originMarker.remove();
@@ -492,22 +1188,53 @@ public class MapsActivity extends FragmentActivity implements
 
         MarkerOptions originMarkerOptions = new MarkerOptions()
                 .title("Origin Marker")
-                .position(new LatLng(lat, lng))
+                .position(latLng)
                 .draggable(true)
                 .anchor(.5f,.5f)
                 .snippet("This is your origin marker")
-                .icon(BitmapDescriptorFactory.fromResource(R.drawable.person_blueicon))
+                .icon(BitmapDescriptorFactory.fromResource((autodetectOrigin)?ico_originMarkerAutodetectLocation:ico_originMarker))
                 ;
         originMarker = mMap.addMarker(originMarkerOptions);
+
+        originRadius = defaultFindRadius; // reset to default find radius
+        do {
+
+            if(originCircle != null)
+            {
+                originCircle.remove();
+                originCircle = null;
+            }
+            originCircle = drawCircle(latLng,originRadius,0x330000FF,0x660000FF,2);
+
+
+            // to index the mapVertexMarkers for the nearest marker to origin
+            mapVertexMarkers_indexNearestToOrigin = highlightNearestVertextWithinMarker(originMarker, originRadius);
+
+            if(mapVertexMarkers_indexNearestToOrigin != -1)
+            {
+                break;
+            }
+            else
+            {
+                originRadius += radiusIncrement; // increment the find radius if no path is found within the radius
+            }
+        }while(mapVertexMarkers_indexNearestToOrigin == -1);
+
 
         if(destinationMarker != null)
         {
             drawOriginToDestinationLine();
-        }
 
+            clearCalcPathMarkers();
+            calcPaths_OriginToDestination();
+        }
     }
     private void setDestinationMarker(double lat, double lng)
     {
+        LatLng latLng = new LatLng(lat,lng);
+
+
+
         if(destinationMarker != null)
         {
             destinationMarker.remove();
@@ -516,7 +1243,7 @@ public class MapsActivity extends FragmentActivity implements
 
         MarkerOptions destinationMarkerOptions = new MarkerOptions()
                 .title("Destination Marker")
-                .position(new LatLng(lat, lng))
+                .position(latLng)
                 .draggable(true)
                 .anchor(.5f,.5f)
                 .snippet("This is your destination marker")
@@ -524,10 +1251,39 @@ public class MapsActivity extends FragmentActivity implements
                 ;
         destinationMarker = mMap.addMarker(destinationMarkerOptions);
 
+
+        destinationRadius = defaultFindRadius; // reset to default find radius
+        do {
+            if(destinationCircle != null)
+            {
+                destinationCircle.remove();
+                destinationCircle = null;
+            }
+
+            destinationCircle = drawCircle(latLng,destinationRadius,0x33FF0000,0x66FF0000,2);
+
+            // to index the mapVertexMarkers for the nearest marker to destination
+            mapVertexMarkers_indexNearestToDestination = highlightNearestVertextWithinMarker(destinationMarker, destinationRadius);
+
+            if(mapVertexMarkers_indexNearestToDestination != -1)
+            {
+                break;
+            }
+            else
+            {
+                destinationRadius += radiusIncrement; // increment the find radius if no path is found within the radius
+            }
+        }while(mapVertexMarkers_indexNearestToDestination == -1);
+
         if(originMarker != null)
         {
             drawOriginToDestinationLine();
+
+            clearCalcPathMarkers();
+            calcPaths_OriginToDestination();
+
         }
+
     }
     private void drawOriginToDestinationLine()
     {
@@ -539,8 +1295,9 @@ public class MapsActivity extends FragmentActivity implements
         PolylineOptions options = new PolylineOptions()
                 .add(originMarker.getPosition())
                 .add(destinationMarker.getPosition())
-                .color(Color.RED)
-                .width(9)
+                .color(Color.BLUE)
+                .visible(false)
+                .width(3)
                 ;
         originToDestinationLine = mMap.addPolyline(options);
     }
@@ -698,7 +1455,6 @@ public class MapsActivity extends FragmentActivity implements
         // connected to location service
         LocationRequest request = LocationRequest.create();
 
-
         SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
         int locationUpdateInterval = Integer.parseInt(sharedPref.getString("locationRequestInterval", "5000"));
         request.setInterval(locationUpdateInterval);
@@ -751,33 +1507,265 @@ public class MapsActivity extends FragmentActivity implements
     //com.google.android.gms.location.LocationListener;
     @Override
     public void onLocationChanged(Location location) {
-        String msg = "Location: " + location.getLatitude() + "," + location.getLongitude();
 
+        if(lastLocation == null || lastLocation.latitude != location.getLatitude() ||
+                lastLocation.longitude != location.getLongitude()
+                )
+        {
+            lastLocation = new LatLng(location.getLatitude(), location.getLongitude());
+            updateCurrentLocation(location);
+        }
+    }
+    private void updateCurrentLocation(Location location)
+    {
+        String currLocationText = "Your GPS location: " + location.getLatitude() + "N," + location.getLongitude() + "E";
+
+        TextView tv_currLocation = (TextView)findViewById(R.id.tv_currLocation);
+        tv_currLocation.setText(currLocationText);
+
+        if(autodetectOrigin && !editRoutesMode && !editVertexMode)
+        {
+            // if mapVertexMarkers isnt in the map, init it but hidden. Used for origin and destination nearest markers
+            if(mapVertexMarkers.isEmpty())
+            {
+                readMapVertex(false);
+            }
+
+            MapsActivity.this.setOriginMarker(location.getLatitude(), location.getLongitude());
+        }
     }
 
-    public void onTogglePlottingClicked(View view)
-    {
-        View layerPlotting = (View) findViewById(R.id.layer_plotting);
 
+    public void onToggleEditVertexClicked(View view)
+    {
         boolean on = ((ToggleButton) view).isChecked();
         if(on)
         {
-            mapPlottingMode = true;
-            layerPlotting.setVisibility(View.VISIBLE);
-            clearOriginAndDestinationMarkers();
+            editVertexPanelEnable(true);
+            editRoutesPanelEnable(false);
+            ((ToggleButton) findViewById(R.id.toggle_editRoutes)).setChecked(false);
         }
         else
         {
-            mapPlottingMode = false;
-            layerPlotting.setVisibility(View.GONE);
-            clearPlotting();
+            editVertexPanelEnable(false);
         }
     }
 
-    public void debugStatus(String str)
+    public void onToggleEditRoutesClicked(View view)
+    {
+        boolean on = ((ToggleButton) view).isChecked();
+        if(on)
+        {
+            editRoutesPanelEnable(true);
+            editVertexPanelEnable(false);
+            ((ToggleButton) findViewById(R.id.toggle_editVertex)).setChecked(false);
+        }
+        else
+        {
+            editRoutesPanelEnable(false);
+        }
+    }
+    private void editVertexPanelEnable(boolean visibility)
+    {
+        View layerEditVertex = (View) findViewById(R.id.panel_editVertices);
+        if(visibility)
+        {
+            editVertexMode = true;
+            layerEditVertex.setVisibility(View.VISIBLE);
+            clearOriginAndDestinationMarkers();
+
+            clearMapVertex();
+            readMapVertex(true);
+        }
+        else
+        {
+            clearEditVertex();
+
+            editVertexMode = false;
+            layerEditVertex.setVisibility(View.GONE);
+        }
+    }
+
+    private void editRoutesPanelEnable(boolean visibility)
+    {
+        View layerEditRoutes = (View) findViewById(R.id.panel_editRoutes);
+        if(visibility)
+        {
+            editRoutesMode = true;
+            layerEditRoutes.setVisibility(View.VISIBLE);
+            clearOriginAndDestinationMarkers();
+
+            clearMapVertex();
+            readMapVertex(true);
+        }
+        else
+        {
+
+
+            editRoutesMode = false;
+            layerEditRoutes.setVisibility(View.GONE);
+            clearRoutePlotting();
+        }
+
+    }
+
+    public void setDebugText(String str)
     {
         TextView debugText = (TextView) findViewById(R.id.tv_debugText);
         debugText.setText(str);
     }
 
+    public void toastMsg(String msg)
+    {
+        Toast.makeText(MapsActivity.this, msg, Toast.LENGTH_SHORT).show();
+    }
+    public void theTestButton(View view)
+    {
+        JeepneysDbHelper dbHelper = new JeepneysDbHelper(this);
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+        //plotWaypoint(1);
+
+        //Edge testEdge = Edge.getEdge(db, 1);
+        //toastMsg(" " + testEdge.toString() );
+
+
+        db.close();
+    }
+
+    public void calcPaths_OriginToDestination()
+    {
+        if(originMarker == null || destinationMarker == null ||
+                mapVertexMarkers_indexNearestToOrigin == -1 ||
+                mapVertexMarkers_indexNearestToDestination == -1
+                )
+        {
+            return;
+        }
+
+        JeepneysDbHelper dbHelper = new JeepneysDbHelper(this);
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+
+        populate_mapDVertices_vertex();
+        populate_mapDVertices_adjacencies();
+
+
+        // the nearest to origin and the nearest to destination
+        long originMarker_vertexId = Vertex.getVertexId(db, mapVertexMarkers.get(mapVertexMarkers_indexNearestToOrigin).getPosition());
+        long destinationMarker_vertexId = Vertex.getVertexId(db, mapVertexMarkers.get(mapVertexMarkers_indexNearestToDestination).getPosition());
+
+        int debugFound = 0; // must not exceed 2! 1 for origin and 1 for destination
+        boolean isOriginVertexFound = false;
+        boolean isDestinationVertexFound = false;
+
+        int indexOfOriginInMapDVertices = -1;
+        int indexOfDestinationInMapDVertices = -1;
+
+        for(int i=0; i<mapDVertices.size();i++)
+        {
+            if(mapDVertices.get(i).vertexId == originMarker_vertexId)
+            {
+                isOriginVertexFound = true;
+                indexOfOriginInMapDVertices = i;
+                debugFound++;
+            }
+            if(mapDVertices.get(i).vertexId == destinationMarker_vertexId)
+            {
+                isDestinationVertexFound = true;
+                indexOfDestinationInMapDVertices = i;
+                debugFound++;
+            }
+
+        }
+        Log.d(LOG_TAG, "debugFound:" + debugFound);
+
+        if(indexOfOriginInMapDVertices != -1)
+        {
+            Dijkstra.computePaths(mapDVertices.get(indexOfOriginInMapDVertices)); // Origin
+        }
+        else
+        {
+            Log.e(LOG_TAG, "indexOfOriginInMapDVertices is -1");
+        }
+
+        if(indexOfDestinationInMapDVertices != -1)
+        {
+            List<DVertex> path = Dijkstra.getShortestPathTo(mapDVertices.get(indexOfDestinationInMapDVertices));
+            markCalcPath(path);
+            drawCalcPathLineGuide();
+
+            Log.d(LOG_TAG,"Distance : " + mapDVertices.get(indexOfDestinationInMapDVertices).minDistance);
+            Log.d(LOG_TAG, "Path: " + path);
+
+            String details1text = "Path: " + path;
+            String details2text = "Distance : " + mapDVertices.get(indexOfDestinationInMapDVertices).minDistance + "m";
+            updateDetails1(details1text);
+            updateDetails2(details2text);
+
+        }
+        else
+        {
+            Log.e(LOG_TAG, "indexOfDestinationInMapDVertices is -1");
+
+        }
+
+
+
+        /* for (DVertex v : mapDVertices)
+        {
+            //System.out.println("\nDistance to " + v + ": " + v.minDistance);
+            Log.d(LOG_TAG,"Distance to " + v + ": " + v.minDistance);
+
+            List<DVertex> path = Dijkstra.getShortestPathTo(v);
+            //System.out.println("Path: " + path);
+
+
+            Log.d(LOG_TAG, "Path: " + path);
+        } */
+
+        db.close();
+    }
+
+    private void updateDetails1(String text)
+    {
+        TextView details1Text = (TextView)findViewById(R.id.tv_details1);
+        details1Text.setText(text);
+    }
+    private void updateDetails2(String text)
+    {
+        TextView details2Text = (TextView)findViewById(R.id.tv_details2);
+        details2Text.setText(text);
+    }
+
+    public void onToggleAutodetectOriginClicked(View view)
+    {
+        boolean on = ((ToggleButton) view).isChecked();
+
+        if(on)
+        {
+            autodetectOrigin = true;
+
+            updateAppMessageText("");
+            if(originMarker!=null)
+            {
+                originMarker.setIcon(BitmapDescriptorFactory.fromResource(ico_originMarkerAutodetectLocation));
+            }
+
+        }
+        else
+        {
+            autodetectOrigin = false;
+            updateAppMessageText("Origin is set to manual. Longclick the map to manually set your origin.");
+            if(originMarker!=null)
+            {
+                originMarker.setIcon(BitmapDescriptorFactory.fromResource(ico_originMarker));
+            }
+        }
+    }
+
+    private void updateAppMessageText(String text)
+    {
+        TextView appMessageText = (TextView)findViewById(R.id.tv_appMessage);
+        appMessageText.setText(text);
+    }
 }

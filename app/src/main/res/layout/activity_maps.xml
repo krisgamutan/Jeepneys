@@ -37,7 +37,6 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         >
-
         <TextView
             android:layout_gravity="left|center_vertical"
             android:text="Location:"
@@ -56,7 +55,6 @@
             android:imeOptions="actionDone"
 
          -->
-
         <Button
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -64,28 +62,130 @@
             android:text="Go"
             android:onClick="geoLocate"
             />
-
     </LinearLayout>
 
     <RelativeLayout
         android:layout_width="fill_parent"
         android:layout_height="fill_parent">
 
+
+
         <LinearLayout
+            android:background="#e1e1e1"
+            android:alpha="0.9"
             android:layout_alignParentBottom="true"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             >
-
             <TextView
                 android:id="@+id/tv_debugText"
-                android:text="Debug Text"
+                android:text=""
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:textColor="#ff0099ff" />
+
+            <TextView
+                android:id="@+id/tv_appMessage"
+                android:text="Click on the map to set your destination."
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#ff0099ff" />
+
+            <TextView
+                android:textColor="#ff0099ff"
+                android:id="@+id/tv_details1"
+                android:text=""
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:textSize="11dp"
+                />
+            <TextView
+                android:textColor="#ff0099ff"
+                android:id="@+id/tv_details2"
+                android:text=""
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:textSize="11dp"
+                />
+
+            <TextView
+                android:textColor="#ff0099ff"
+                android:id="@+id/tv_currLocation"
+                android:text="Your GPS location:"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:textSize="11dp"
+                />
+
+            <!-- editPoints Panel -->
 
             <LinearLayout
-                android:id="@+id/layer_plotting"
+                android:id="@+id/panel_editVertices"
+                android:background="#d1d1d1"
+                android:alpha="0.9"
+                android:visibility="gone"
+                android:orientation="vertical"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content">
+
+                <TextView
+                    android:id="@+id/tv_editPointsStatusText"
+                    android:text=""
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <LinearLayout
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content">
+                    <Button
+                        android:text="Undo"
+                        android:gravity="right"
+                        android:id="@+id/btn_editVertexUndo"
+                        android:onClick="editVertexUndoLastMarker"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                    <Button
+                        android:gravity="right"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:onClick="editVertexCommit"
+                        android:text="Save in SQLite"
+                        android:id="@+id/btn_editPointsSave"
+                        />
+                    <Button
+                        android:gravity="right"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:onClick="editVertexClear"
+                        android:text="Clear"
+                        android:id="@+id/btn_editPointsClear"
+                        />
+                    <Button
+                        android:gravity="right"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:onClick="editVertexClear"
+                        android:text="Reset"
+                        android:id="@+id/btn_editVertexReset"
+                        />
+
+                    <Button
+                        android:gravity="right"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:onClick="editVertexRefresh"
+                        android:text="Refresh"
+                        android:id="@+id/btn_editPointsRefresh"
+                        />
+
+                </LinearLayout>
+
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/panel_editRoutes"
                 android:background="#d1d1d1"
                 android:alpha="0.9"
                 android:visibility="gone"
@@ -103,12 +203,14 @@
                     android:text=""
                     android:hint="route number"
                     android:id="@+id/editTextRouteNumber"
+                    android:inputType="text"
                     android:layout_width="fill_parent"
                     android:layout_height="wrap_content" />
                 <EditText
                     android:text=""
-                    android:hint="route description"
-                    android:id="@+id/editTextRouteDescription"
+                    android:hint="path description"
+                    android:id="@+id/editTextPathDescription"
+                    android:inputType="text"
                     android:layout_width="fill_parent"
                     android:layout_height="wrap_content" />
 
@@ -127,6 +229,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Save in SQLite"
+                        android:onClick="editRoutesCommit"
                         android:id="@+id/btn_saveInSQLite"
                         />
 
@@ -135,21 +238,56 @@
 
                 </LinearLayout>
 
+            <!-- Toggle Buttons -->
             <LinearLayout
+                android:background="#e1e1e1"
+                android:alpha="0.9"
                 android:orientation="horizontal"
-                android:layout_width="wrap_content"
+                android:layout_width="fill_parent"
                 android:layout_height="wrap_content">
 
+
                 <ToggleButton
-                    android:id="@+id/toggle_plotting"
-                    android:textOn="Plot On"
-                    android:textOff="Plot Off"
-                    android:onClick="onTogglePlottingClicked"
+                    android:id="@+id/toggle_editVertex"
+                    android:textOn="Points"
+                    android:textOff="Points"
+                    android:onClick="onToggleEditVertexClicked"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content" />
 
 
+                <ToggleButton
+                    android:id="@+id/toggle_editRoutes"
+                    android:textOn="Routing"
+                    android:textOff="Routing"
+                    android:onClick="onToggleEditRoutesClicked"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <ToggleButton
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/toggle_autodetectOrigin"
+                    android:textOn="Origin: GPS"
+                    android:textOff="Origin: Manual"
+                    android:checked="true"
+                    android:text="Origin location"
+                    android:onClick="onToggleAutodetectOriginClicked" />
+
+                <Button
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Test"
+                    android:id="@+id/theTestButton"
+                    android:onClick="theTestButton"
+                    />
+
+
                 </LinearLayout>
+
+
+
+
 
 
 

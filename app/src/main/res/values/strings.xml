@@ -25,4 +25,11 @@
     <string name="map">Map</string>
     <string name="title_activity_gpslicense">GPSLicenseActivity</string>
 
+    <!-- Buttons -->
+    <string name="btn_map">Map</string>
+    <string name="btn_locations">Locations</string>
+    <string name="btn_routes">Routes</string>
+    <string name="btn_language">Language</string>
+    <string name="btn_help">Help</string>
+
 </resources>

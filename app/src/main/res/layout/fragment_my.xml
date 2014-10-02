@@ -1,6 +1,6 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:background="#45a4af"
+    android:background="#d1d1d1"
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -28,14 +28,61 @@
         android:text="@string/team_copyright"
         />
 
-    <ImageButton
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:onClick="displayMap"
-        android:id="@+id/imgBtn_displayMap"
-        android:src="@drawable/ic_jeepneys_logo"
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent">
 
-        />
+
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content">
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="displayMap"
+                android:id="@+id/btn_displayMap"
+                android:drawableTop="@drawable/ic_viewmap"
+                android:text="@string/btn_map"
+                />
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="displayMap"
+                android:id="@+id/btn_locationsList"
+                android:drawableTop="@drawable/ic_locations"
+                android:text="@string/btn_locations"
+                />
+
+
+            </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content">
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="displayMap"
+                android:id="@+id/btn_routes"
+                android:drawableTop="@drawable/maproute_icon"
+                android:text="@string/btn_routes"
+                />
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="displayMap"
+                android:id="@+id/btn_help"
+                android:drawableTop="@drawable/ic_help"
+                android:text="@string/btn_help"
+                />
+        </LinearLayout>
+
+    </LinearLayout>
+
 
 
     <!--Button

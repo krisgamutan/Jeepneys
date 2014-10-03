@@ -64,7 +64,6 @@ public class Waypoint {
     {
         int max = -1;
 
-        // returns Lat and Lng, in String[0]..[1]
         String[] columns = {
                 "MAX(" + JeepneysContract.WaypointEntry._ID + ")"
         };
@@ -169,6 +168,235 @@ public class Waypoint {
 
         cursor.close();
         return waypoint;
+    }
+
+    public static int waypointCountEdgeId(SQLiteDatabase db, long waypointId, long edgeId)
+    {
+        int count = -1;
+        String[] columns = {
+                "COUNT(" + JeepneysContract.WaypointEntry.COLUMN_EDGE_IDEDGE + ")"
+        };
+
+        String whereClause = JeepneysContract.WaypointEntry.COLUMN_EDGE_IDEDGE + "=? AND " + JeepneysContract.WaypointEntry._ID + "=?";
+
+        String[] whereArgs = new String[] {
+                Long.toString(edgeId),
+                Long.toString(waypointId)
+        };
+
+        Cursor cursor = db.query(
+                JeepneysContract.WaypointEntry.TABLE_NAME,
+                columns,
+                whereClause, // selection
+                whereArgs, // selectionArgs
+                null, // groupBy
+                null, // having
+                null // orderBy
+        );
+
+
+
+        if(cursor.getCount() <= 0) // No waypoints found having that edgesId
+        {
+            cursor.close();
+            //db.close();
+            return 0;
+        }
+        else
+        {
+            cursor.moveToFirst();
+            count = cursor.getInt( 0 );
+            cursor.close();
+        }
+        //db.close();
+        return count;
+    }
+
+    public static ArrayList<Long> waypointIdThatHaveEdges(SQLiteDatabase db, long edgeId)
+    {
+        ArrayList<Long> waypointIdList = new ArrayList<Long>();
+
+        String[] columns = {
+                JeepneysContract.WaypointEntry._ID
+        };
+
+        String whereClause = JeepneysContract.WaypointEntry.COLUMN_EDGE_IDEDGE + "=?";
+
+        String[] whereArgs = new String[] {
+                Long.toString(edgeId)
+        };
+
+        Cursor cursor = db.query(
+                JeepneysContract.WaypointEntry.TABLE_NAME,
+                columns,
+                whereClause, // selection
+                whereArgs, // selectionArgs
+                null, // groupBy
+                null, // having
+                null // orderBy
+        );
+
+        if(cursor.getCount() <= 0) // No waypoints found having that edgesId list
+        {
+            cursor.close();
+            //db.close();
+            return null;
+        }
+
+
+        for (cursor.moveToFirst(); !cursor.isAfterLast(); cursor.moveToNext())
+        {
+            waypointIdList.add(new Long( cursor.getLong( cursor.getColumnIndex(JeepneysContract.WaypointEntry._ID)) ));
+
+        }
+        cursor.close();
+
+
+        //db.close();
+        return waypointIdList;
+    }
+
+    // Returns -1 is there's no EdgeId in that waypointId
+    public static int getIndexOfEdge(SQLiteDatabase db, long waypointId, long edgeId)
+    {
+        int edgeIndex = -1;
+
+        String[] columns = {
+                JeepneysContract.WaypointEntry.COLUMN_EDGEINDEX
+        };
+
+        String whereClause = JeepneysContract.WaypointEntry.COLUMN_EDGE_IDEDGE + "=? AND " + JeepneysContract.WaypointEntry._ID + "=?";
+
+        String[] whereArgs = new String[] {
+                Long.toString(edgeId),
+                Long.toString(waypointId)
+        };
+
+        Cursor cursor = db.query(
+                JeepneysContract.WaypointEntry.TABLE_NAME,
+                columns,
+                whereClause, // selection
+                whereArgs, // selectionArgs
+                null, // groupBy
+                null, // having
+                null // orderBy
+        );
+
+        if(cursor.getCount() <= 0) // No waypoints found having that edgesId list
+        {
+            cursor.close();
+            //db.close();
+            Log.d(LOG_TAG, "no edgeIndex of that edgeId in that waypointId");
+            return -1;
+
+        }
+        if(cursor.getCount() > 1)
+        {
+            cursor.close();
+            //db.close();
+            Log.e(LOG_TAG, "WARNING: there is more than one edgeIndex of that edgeId in that waypointId");
+            return -1;
+
+        }
+
+
+        for (cursor.moveToFirst(); !cursor.isAfterLast(); cursor.moveToNext())
+        {
+            edgeIndex = cursor.getInt( cursor.getColumnIndex(JeepneysContract.WaypointEntry.COLUMN_EDGEINDEX));
+
+        }
+        cursor.close();
+        //db.close();
+        return edgeIndex;
+    }
+
+
+
+    public static ArrayList<Waypoint> waypointThatHaveEdges(SQLiteDatabase db, long edgeId)
+    {
+        ArrayList<Waypoint> waypointList = new ArrayList<Waypoint>();
+
+        String[] columns = {
+                JeepneysContract.WaypointEntry._ID
+        };
+
+        String whereClause = JeepneysContract.WaypointEntry.COLUMN_EDGE_IDEDGE + "=?";
+
+        String[] whereArgs = new String[] {
+                Long.toString(edgeId)
+        };
+
+        Cursor cursor = db.query(
+                JeepneysContract.WaypointEntry.TABLE_NAME,
+                columns,
+                whereClause, // selection
+                whereArgs, // selectionArgs
+                null, // groupBy
+                null, // having
+                null // orderBy
+        );
+
+        if(cursor.getCount() <= 0) // No waypoints found having that edgesId list
+        {
+            cursor.close();
+            //db.close();
+            return null;
+        }
+
+
+        for (cursor.moveToFirst(); !cursor.isAfterLast(); cursor.moveToNext())
+        {
+            waypointList.add(Waypoint.getWaypoint(db, cursor.getLong( cursor.getColumnIndex(JeepneysContract.WaypointEntry._ID))));
+
+        }
+        cursor.close();
+
+
+        //db.close();
+        return waypointList;
+    }
+
+
+    public static int countEdges(SQLiteDatabase db, long waypointId)
+    {
+        // the number of edges a waypoint has
+        int count = -1;
+        String[] columns = {
+                "COUNT(" + JeepneysContract.WaypointEntry.COLUMN_EDGE_IDEDGE + ")"
+        };
+
+        String whereClause = JeepneysContract.WaypointEntry._ID + "=?";
+
+        String[] whereArgs = new String[] {
+                Long.toString(waypointId)
+        };
+
+        Cursor cursor = db.query(
+                JeepneysContract.WaypointEntry.TABLE_NAME,
+                columns,
+                whereClause, // selection
+                whereArgs, // selectionArgs
+                null, // groupBy
+                null, // having
+                null // orderBy
+        );
+
+
+
+        if(cursor.getCount() <= 0) // No waypoints found having that edgesId
+        {
+            cursor.close();
+            //db.close();
+            return 0;
+        }
+        else
+        {
+            cursor.moveToFirst();
+            count = cursor.getInt( 0 );
+            cursor.close();
+        }
+        //db.close();
+        return count;
     }
 
 

@@ -55,6 +55,8 @@ import net.krisg.riseabove.jeepneys.utilities.GooglePlayServiceUtility;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 public class MapsActivity extends FragmentActivity implements
@@ -112,6 +114,16 @@ public class MapsActivity extends FragmentActivity implements
 
     int ico_originMarker = R.drawable.ic_grayuser;
     int ico_originMarkerAutodetectLocation = R.drawable.ic_blueball;
+
+    ArrayList<DVertex> mapDVertices = new ArrayList<DVertex>();
+
+    ArrayList<Marker> calcPathMarkers = new ArrayList<Marker>();
+    Polyline calcPathLine;
+    List<DVertex> shortPathToDestination = new ArrayList<DVertex>();
+
+
+    int indexOfOriginInMapDVertices = -1;
+    int indexOfDestinationInMapDVertices = -1;
 
     public void editVertexRefresh(View view)
     {
@@ -276,9 +288,6 @@ public class MapsActivity extends FragmentActivity implements
         db.close();
 
     }
-
-
-
 
     public void editRoutesCommit(View view)
     {
@@ -466,11 +475,6 @@ public class MapsActivity extends FragmentActivity implements
         db.close();
     }
 
-    ArrayList<DVertex> mapDVertices = new ArrayList<DVertex>();
-
-    ArrayList<Marker> calcPathMarkers = new ArrayList<Marker>();
-    Polyline calcPathLine;
-
     private void markCalcPath(List<DVertex> path)
     {
         clearCalcPathMarkers();
@@ -636,9 +640,6 @@ public class MapsActivity extends FragmentActivity implements
         db.close();
     }
 
-
-
-
     private Polyline plotWaypoint(long id)
     {
         Polyline wpPolyLine = null;
@@ -671,7 +672,6 @@ public class MapsActivity extends FragmentActivity implements
 
         return wpPolyLine;
     }
-
 
     private void drawRoutePlottingLineGuide()
     {
@@ -785,7 +785,6 @@ public class MapsActivity extends FragmentActivity implements
         return false;
     }
 
-
     private void plottingStatusText()
     {
 
@@ -807,8 +806,6 @@ public class MapsActivity extends FragmentActivity implements
         }
 
     }
-
-
 
     @Override
     protected void onStop() {
@@ -1038,7 +1035,7 @@ public class MapsActivity extends FragmentActivity implements
                         String toastString = addressToString(address);
                         Toast.makeText(MapsActivity.this, toastString, Toast.LENGTH_SHORT).show();
                         */
-                        if(!editRoutesMode && !editVertexMode)
+                        if(!editRoutesMode && !editVertexMode )
                         {
                             // if mapVertexMarkers isnt in the map, init it but hidden. Used for origin and destination nearest markers
                             if(mapVertexMarkers.isEmpty())
@@ -1048,7 +1045,7 @@ public class MapsActivity extends FragmentActivity implements
 
                             MapsActivity.this.setOriginMarker(latLng.latitude, latLng.longitude);
                             // FOR TESTING
-                            String toastString = "Lat:" + latLng.latitude + ", Long:" + latLng.longitude;
+                            //String toastString = "Lat:" + latLng.latitude + ", Long:" + latLng.longitude;
                         }
                     }
                 });
@@ -1118,7 +1115,6 @@ public class MapsActivity extends FragmentActivity implements
     }
 
 
-
     private List<Address> getGeocode(LatLng latLng)
     {
         Geocoder gc = new Geocoder(MapsActivity.this);
@@ -1132,7 +1128,6 @@ public class MapsActivity extends FragmentActivity implements
 
         return list;
     }
-
 
     private void clearOriginAndDestinationMarkers()
     {
@@ -1233,8 +1228,6 @@ public class MapsActivity extends FragmentActivity implements
     {
         LatLng latLng = new LatLng(lat,lng);
 
-
-
         if(destinationMarker != null)
         {
             destinationMarker.remove();
@@ -1296,7 +1289,7 @@ public class MapsActivity extends FragmentActivity implements
                 .add(originMarker.getPosition())
                 .add(destinationMarker.getPosition())
                 .color(Color.BLUE)
-                .visible(false)
+                .visible(true)
                 .width(3)
                 ;
         originToDestinationLine = mMap.addPolyline(options);
@@ -1629,7 +1622,58 @@ public class MapsActivity extends FragmentActivity implements
         //Edge testEdge = Edge.getEdge(db, 1);
         //toastMsg(" " + testEdge.toString() );
 
+        //ArrayList<Long> wpId = Waypoint.waypointIdThatHaveEdges(db, 10);
 
+        //ArrayList<Edge> eList = Edge.convertToEdges(db, shortPathToDestination);
+
+        //ArrayList<Path> pList = Path.pathsThatHaveWaypointId(db, 1);
+
+        // int count = Waypoint.waypointCountEdgeId(db, 1, 2);
+
+        //int edgeIndex = Waypoint.getIndexOfEdge(db, 3, 15);
+
+
+
+        updateRouteToTake_details1();
+
+        //toastMsg( "test:" + pathListInShortestPath() );
+
+
+        db.close();
+    }
+
+    private void updateRouteToTake_details1()
+    {
+        JeepneysDbHelper dbHelper = new JeepneysDbHelper(this);
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+        int numberOfRoutesToTakeToDisplay = 5;
+
+        ArrayList<Path> plistInShortestPath = pathListInShortestPath();
+
+        String details1text = "Take Routes: ";
+        String lastRoute = "";
+
+        for(int i=0; numberOfRoutesToTakeToDisplay > 0 && i<plistInShortestPath.size(); i++)
+        {
+            String routeNumber = Route.getRoute(db,plistInShortestPath.get(i).getIdRoute()).getRouteNumber();
+
+            if(routeNumber.equals(lastRoute))
+            {
+                ; //
+            }
+            else
+            {
+                lastRoute = routeNumber;
+                details1text +=  routeNumber + "->" ;
+
+                numberOfRoutesToTakeToDisplay--;
+            }
+
+
+        }
+
+        updateDetails1(details1text);
         db.close();
     }
 
@@ -1658,8 +1702,8 @@ public class MapsActivity extends FragmentActivity implements
         boolean isOriginVertexFound = false;
         boolean isDestinationVertexFound = false;
 
-        int indexOfOriginInMapDVertices = -1;
-        int indexOfDestinationInMapDVertices = -1;
+        indexOfOriginInMapDVertices = -1;
+        indexOfDestinationInMapDVertices = -1;
 
         for(int i=0; i<mapDVertices.size();i++)
         {
@@ -1690,17 +1734,23 @@ public class MapsActivity extends FragmentActivity implements
 
         if(indexOfDestinationInMapDVertices != -1)
         {
-            List<DVertex> path = Dijkstra.getShortestPathTo(mapDVertices.get(indexOfDestinationInMapDVertices));
-            markCalcPath(path);
+            shortPathToDestination = Dijkstra.getShortestPathTo(mapDVertices.get(indexOfDestinationInMapDVertices));
+            markCalcPath(shortPathToDestination);
             drawCalcPathLineGuide();
 
             Log.d(LOG_TAG,"Distance : " + mapDVertices.get(indexOfDestinationInMapDVertices).minDistance);
-            Log.d(LOG_TAG, "Path: " + path);
+            Log.d(LOG_TAG, "Path: " + shortPathToDestination);
 
-            String details1text = "Path: " + path;
-            String details2text = "Distance : " + mapDVertices.get(indexOfDestinationInMapDVertices).minDistance + "m";
-            updateDetails1(details1text);
+
+            //String details1text = "Path: " + shortPathToDestination;
+
+            String details2text = "Distance (m) : " + mapDVertices.get(indexOfDestinationInMapDVertices).minDistance;
+
+            //updateDetails1(details1text);
+
             updateDetails2(details2text);
+
+            //updateRouteToTake_details1();
 
         }
         else
@@ -1726,6 +1776,157 @@ public class MapsActivity extends FragmentActivity implements
         db.close();
     }
 
+    private ArrayList<Path> pathListInShortestPath()
+    {
+        /*
+        1. convert shortestPath vertices to edges
+        2. query all waypoints that has the edge i
+        3.      query all paths that has waypoint j
+        4.          find which path is the longest within the "shortest path" and use it
+         */
+
+        // This will return the Path to be travelled by
+        ArrayList<Path> pathListOfShortestPath = new ArrayList<Path>();
+
+        JeepneysDbHelper dbHelper = new JeepneysDbHelper(this);
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+
+        // Convert to Edges
+        ArrayList<Edge> edgeList = Edge.convertToEdges(db, shortPathToDestination);
+
+
+        if(edgeList.size() <= 0)
+        {
+            Log.e(LOG_TAG, "edgeIdList is <= 0");
+
+        }
+        else
+        {
+            for(int i=0; i<edgeList.size(); i++ )
+            {
+                // Waypoints that have this edge i
+                ArrayList<Waypoint> waypointList = Waypoint.waypointThatHaveEdges(db, edgeList.get(i).getId());
+
+                for(int j=0; j < waypointList.size(); j++)
+                {
+
+                    // List of Paths that uses this waypoint
+                    ArrayList<Path> pathList = Path.pathsThatHaveWaypointId(db, waypointList.get(j).getId() );
+
+
+                    for(int k=0; k < pathList.size(); k++)
+                    {
+                        // temp list path to determine which path is longest (having traverse more edges) in the shortestPathToDestination
+                        ArrayList<WeightedPath> weightedPaths = new ArrayList<WeightedPath>();
+                        weightedPaths.add(new WeightedPath(0, pathList.get(k) )); // put in WeightedPath
+
+
+                        Waypoint waypointOf_kInList = Waypoint.getWaypoint(db, pathList.get(k).getIdWaypoint() );
+
+                        int edgeIndexOfEdgeInList = Waypoint.getIndexOfEdge(
+                                db,
+                                pathList.get(k).getIdWaypoint(),
+                                edgeList.get(i).getId()
+                        );
+
+
+                        for(int m=0;
+                            m < 1
+                            //(edgeIndexOfEdgeInList + m) < Waypoint.countEdges(db, edgeList.get( i + m ).getId())// Waypoint.countEdges(db, waypointOf_kInList.getId())
+                                ;
+                                m++) //&& (i+m) < edgeList.size()
+                        {
+
+                            if(
+                                    waypointOf_kInList.getEdge( edgeIndexOfEdgeInList + m ).getId()
+                                    ==
+                                    edgeList.get( i + m ).getId())
+                            {
+                                weightedPaths.get(k).incrementWeight();
+
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                        Collections.reverse(weightedPaths);
+
+                        i += weightedPaths.get(0).getWeight() - 1 ;
+
+                        pathListOfShortestPath.add(weightedPaths.get(0).getPath());
+
+                        Log.d(LOG_TAG, "" + weightedPaths);
+                    }
+
+
+
+
+                }
+
+            }
+        }
+
+
+        db.close();
+        return pathListOfShortestPath;
+    }
+
+
+
+
+    class WeightedPath implements Comparator<WeightedPath>, Comparable<WeightedPath>
+    {
+        int weight;
+        Path path;
+
+        WeightedPath(int weight, Path path) {
+            this.weight = weight;
+            this.path = path;
+        }
+
+        public void incrementWeight()
+        {
+            this.weight++;
+        }
+
+        public int getWeight() {
+            return weight;
+        }
+
+        public void setWeight(int weight) {
+            this.weight = weight;
+        }
+
+        public Path getPath() {
+            return path;
+        }
+
+        public void setPath(Path path) {
+            this.path = path;
+        }
+
+        @Override
+        public int compareTo(WeightedPath another) {
+            return this.weight - another.weight;
+        }
+
+        @Override
+        public int compare(WeightedPath lhs, WeightedPath rhs) {
+            return lhs.weight - rhs.weight;
+        }
+
+        @Override
+        public String toString() {
+            return "WeightedPath{" +
+                    "weight=" + weight +
+                    ", path=" + path +
+                    '}';
+        }
+    }
+
+
+
     private void updateDetails1(String text)
     {
         TextView details1Text = (TextView)findViewById(R.id.tv_details1);
@@ -1746,6 +1947,7 @@ public class MapsActivity extends FragmentActivity implements
             autodetectOrigin = true;
 
             updateAppMessageText("");
+
             if(originMarker!=null)
             {
                 originMarker.setIcon(BitmapDescriptorFactory.fromResource(ico_originMarkerAutodetectLocation));

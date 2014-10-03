@@ -4,6 +4,8 @@ import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
+import java.util.ArrayList;
+
 /**
  * Created by KrisEmmanuel on 9/29/2014.
  */
@@ -53,6 +55,13 @@ public class Path {
         this.idRoute = idRoute;
         this.idWaypoint = idWaypoint;
         this.description = description;
+    }
+
+    @Override
+    public String toString() {
+        return "Path{" +
+                "id=" + id +
+                '}';
     }
 
     @Override
@@ -174,5 +183,58 @@ public class Path {
         return path;
     }
 
+
+
+    public static ArrayList<Path> pathsThatHaveWaypointId(SQLiteDatabase db, long waypointId)
+    {
+        ArrayList<Path> pathList = new ArrayList<Path>();
+
+        String[] columns = {
+                JeepneysContract.PathEntry._ID,
+                JeepneysContract.PathEntry.COLUMN_ROUTE_IDROUTE,
+                JeepneysContract.PathEntry.COLUMN_WAYPOINT_IDWAYPOINT,
+                JeepneysContract.PathEntry.COLUMN_DESCRIPTION
+        };
+
+        String whereClause = JeepneysContract.PathEntry.COLUMN_WAYPOINT_IDWAYPOINT + "=?";
+
+        String[] whereArgs = new String[] {
+                Long.toString(waypointId)
+        };
+
+        Cursor cursor = db.query(
+                JeepneysContract.PathEntry.TABLE_NAME,
+                columns,
+                whereClause, // selection
+                whereArgs, // selectionArgs
+                null, // groupBy
+                null, // having
+                null // orderBy
+        );
+
+        if(cursor.getCount() <= 0) // No waypoints found having that edgesId list
+        {
+            cursor.close();
+            //db.close();
+            return null;
+        }
+
+
+        for (cursor.moveToFirst(); !cursor.isAfterLast(); cursor.moveToNext())
+        {
+            //Path(long id, long idRoute, long idWaypoint, String description)
+            Path p = new Path(
+                    cursor.getLong( cursor.getColumnIndex(JeepneysContract.PathEntry._ID)),
+                    cursor.getLong( cursor.getColumnIndex(JeepneysContract.PathEntry.COLUMN_ROUTE_IDROUTE)),
+                    cursor.getLong( cursor.getColumnIndex(JeepneysContract.PathEntry.COLUMN_WAYPOINT_IDWAYPOINT)),
+                    cursor.getString( cursor.getColumnIndex(JeepneysContract.PathEntry.COLUMN_DESCRIPTION))
+            );
+            pathList.add(p);
+
+        }
+        cursor.close();
+        //db.close();
+        return pathList;
+    }
 
 }

@@ -31,7 +31,7 @@
         map:uiTiltGestures="true"
         map:uiZoomControls="true"
         map:uiZoomGestures="true" -->
-
+    <!--
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -50,11 +50,7 @@
             android:ems="10"
             android:hint="@string/search"
             />
-        <!--
-            android:maxLines="1"
-            android:imeOptions="actionDone"
 
-         -->
         <Button
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -62,7 +58,32 @@
             android:text="Go"
             android:onClick="geoLocate"
             />
-    </LinearLayout>
+    </LinearLayout> -->
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="1">
+
+        <EditText
+            android:id="@+id/editTextLocation"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center|center_vertical"
+            android:ems="10"
+            android:hint="@string/search"
+            />
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/btnSearchLocation"
+            android:drawableLeft="@drawable/ic_binocular"
+            android:onClick="searchLocation"
+            />
+
+
+        </LinearLayout>
 
     <RelativeLayout
         android:layout_width="fill_parent"

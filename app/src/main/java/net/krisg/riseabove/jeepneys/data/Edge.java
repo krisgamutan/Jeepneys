@@ -6,6 +6,8 @@ import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by KrisEmmanuel on 9/29/2014.
@@ -250,5 +252,36 @@ public class Edge {
         return newRowId;
     }
 
+    public static ArrayList<Long> convertToEdgeId(SQLiteDatabase db, List<DVertex> listDVertex)
+    {
+        // Watch listDVertex with 1 point only.
+        // Watch with no known paths "Distance Infinity"
 
+        ArrayList<Long> listEdgeId = new ArrayList<Long>();
+
+        if(listDVertex.size() > 1)
+        {
+            for(int i=0; i < listDVertex.size() - 1; i++)
+            {
+                listEdgeId.add(new Long(Edge.getEdgeId(db, listDVertex.get(i).vertexId, listDVertex.get(i+1).vertexId)));
+            }
+        }
+
+
+        //db.close();
+        return listEdgeId;
+    }
+    public static ArrayList<Edge> convertToEdges(SQLiteDatabase db, List<DVertex> listDVertex)
+    {
+        ArrayList<Edge> edgeList = new ArrayList<Edge>();
+
+        for(int i=0; i<listDVertex.size() - 1; i++)
+        {
+            long edgeId = Edge.getEdgeId(db,listDVertex.get(i).vertexId,listDVertex.get(i+1).vertexId);
+            edgeList.add( Edge.getEdge(db, edgeId) );
+        }
+
+        //db.close();
+        return edgeList;
+    }
 }

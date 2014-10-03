@@ -78,11 +78,11 @@ public class Vertex {
                 '}';
     }
 
-    public static ContentValues makeContentValues(double lat,double lng)
+    public static ContentValues makeContentValues(String lat,String lng)
     {
         ContentValues values = new ContentValues();
-        values.put(JeepneysContract.VertexEntry.COLUMN_LATITUDE, Double.toString(lat));
-        values.put(JeepneysContract.VertexEntry.COLUMN_LONGITUDE, Double.toString(lng));
+        values.put(JeepneysContract.VertexEntry.COLUMN_LATITUDE, lat);
+        values.put(JeepneysContract.VertexEntry.COLUMN_LONGITUDE, lng);
         return values;
     }
 
@@ -92,16 +92,32 @@ public class Vertex {
         return position;
     }
 
-    public static boolean isVertexCoordinateUnique(SQLiteDatabase db, double lat, double lng)
+    public static boolean isVertexCoordinateUnique(SQLiteDatabase db, String lat, String lng)
     {
         String sql;
-        String[] args = {Double.toString(lat), Double.toString(lng)};
 
-        sql = "SELECT * FROM " + JeepneysContract.VertexEntry.TABLE_NAME + " WHERE " +
-                JeepneysContract.VertexEntry.COLUMN_LATITUDE + "=? AND " +
-                JeepneysContract.VertexEntry.COLUMN_LONGITUDE + "=?";
 
-        Cursor cursor = db.rawQuery(sql,args);
+        String[] columns = {
+                "COUNT(" + JeepneysContract.VertexEntry._ID + ")"
+        };
+
+        String whereClause = JeepneysContract.VertexEntry.COLUMN_LATITUDE + "=? AND " + JeepneysContract.VertexEntry.COLUMN_LONGITUDE + "=?";
+
+        String[] whereArgs = new String[] {
+                lat,
+                lng
+        };
+
+        Cursor cursor = db.query(
+                JeepneysContract.VertexEntry.TABLE_NAME,
+                columns,
+                whereClause, // selection
+                whereArgs, // selectionArgs
+                null, // groupBy
+                null, // having
+                null // orderBy
+        );
+
         if(cursor.getCount() <= 0)
         {
             cursor.close();
@@ -130,10 +146,11 @@ public class Vertex {
 
     public static long getVertexId(SQLiteDatabase db, LatLng latlng)
     {
-        return getVertexId(db, latlng.latitude, latlng.longitude);
+
+        return getVertexId(db,    Double.toString(latlng.latitude), Double.toString(latlng.longitude));
     }
 
-    public static long getVertexId(SQLiteDatabase db, double lat, double lng)
+    public static long getVertexId(SQLiteDatabase db, String lat, String lng)
     {
 
         // Test: Id: 5
@@ -147,8 +164,8 @@ public class Vertex {
         String whereClause = JeepneysContract.VertexEntry.COLUMN_LATITUDE + "=? AND " + JeepneysContract.VertexEntry.COLUMN_LONGITUDE + "=?";
 
         String[] whereArgs = new String[] {
-                Double.toString(lat),
-                Double.toString(lng)
+                lat,
+                lng
         };
 
         Cursor cursor = db.query(
@@ -160,20 +177,20 @@ public class Vertex {
                 null, // having
                 null // orderBy
         );
-        long id = -2;
+        long id = -1;
         if(cursor.getCount() <= 0)
         {
             cursor.close();
-            return -3;
+            return -1;
         }
         if(cursor.moveToFirst()) // this assumes only unique vertex id per lat lng
         {
-            id = cursor.getLong( 0);
+            id = cursor.getLong( cursor.getColumnIndex(JeepneysContract.VertexEntry._ID) );
             cursor.close();
             return id;
         }
         cursor.close();
-        return -4;
+        return -1;
 
     }
     public static String[] queryId(SQLiteDatabase db, long id)

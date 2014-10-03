@@ -65,6 +65,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1">
 
+        <!--
         <EditText
             android:id="@+id/editTextLocation"
             android:layout_width="wrap_content"
@@ -72,7 +73,9 @@
             android:layout_gravity="center|center_vertical"
             android:ems="10"
             android:hint="@string/search"
-            />
+            />-->
+
+
 
         <Button
             android:layout_width="wrap_content"
@@ -205,6 +208,7 @@
 
             </LinearLayout>
 
+            <!-- editRoutes panel -->
             <LinearLayout
                 android:id="@+id/panel_editRoutes"
                 android:background="#d1d1d1"
@@ -259,6 +263,68 @@
 
                 </LinearLayout>
 
+
+            <!-- editLocations panel -->
+            <LinearLayout
+                android:id="@+id/panel_editLocations"
+                android:background="#d1d1d1"
+                android:alpha="0.9"
+                android:visibility="gone"
+                android:orientation="vertical"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content">
+
+                <EditText
+                    android:text=""
+                    android:hint="location name"
+                    android:id="@+id/editTextLocationName"
+                    android:inputType="text"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content" />
+
+                <EditText
+                    android:text=""
+                    android:hint="latitude"
+                    android:id="@+id/editTextLatitude"
+                    android:inputType="text"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content" />
+
+                <EditText
+                    android:text=""
+                    android:hint="longitude"
+                    android:id="@+id/editTextLongitude"
+                    android:inputType="text"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content" />
+
+                <LinearLayout
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content">
+
+                    <Button
+                        android:gravity="right"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:onClick="useDestinationMarkLocation"
+                        android:text="Use Destination mark location"
+                        android:id="@+id/btn_useDestinationMarkLocation"
+                        />
+
+                    <Button
+                        android:gravity="right"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:onClick="editLocationsCommit"
+                        android:text="Save in SQLite"
+                        android:id="@+id/btn_editLocationSave"
+                        />
+
+                </LinearLayout>
+
+
+            </LinearLayout>
+
             <!-- Toggle Buttons -->
             <LinearLayout
                 android:background="#e1e1e1"
@@ -282,6 +348,14 @@
                     android:textOn="Routing"
                     android:textOff="Routing"
                     android:onClick="onToggleEditRoutesClicked"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <ToggleButton
+                    android:id="@+id/toggle_editLocations"
+                    android:textOn="Locations"
+                    android:textOff="Locations"
+                    android:onClick="onToggleEditLocationsClicked"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content" />
 

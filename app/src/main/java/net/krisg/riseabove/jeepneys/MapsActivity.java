@@ -66,6 +66,15 @@ public class MapsActivity extends FragmentActivity implements
 {
     private static final String LOG_TAG = MapsActivity.class.getSimpleName();
 
+    String[] predef_locations =
+            {
+                    "Ayala Center - Cebu",
+                    "IT Park",
+                    "Cebu Institute of Technology - University",
+                    "SM Mega mall"
+
+            };
+
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
 
@@ -89,6 +98,7 @@ public class MapsActivity extends FragmentActivity implements
 
     boolean editRoutesMode = false;
     boolean editVertexMode = false;
+    boolean editLocationsMode = false;
 
     Circle originCircle;
     Circle destinationCircle;
@@ -256,16 +266,25 @@ public class MapsActivity extends FragmentActivity implements
         ContentValues values;
 
         long vertexRowId = -1;
-        double lat,lng;
+        String lat,lng;
         String sql;
         for(int i=0; i< editVertexNewMarkers.size(); i++)
         {
-            lat = editVertexNewMarkers.get(i).getPosition().latitude;
-            lng = editVertexNewMarkers.get(i).getPosition().longitude;
+
+
+            lat = Double.toString(editVertexNewMarkers.get(i).getPosition().latitude);
+            lng = Double.toString(editVertexNewMarkers.get(i).getPosition().longitude);
 
 
             if(Vertex.isVertexCoordinateUnique(db, lat, lng)) // Add only if point with latlng is not in the table
             {
+
+                toastMsg("A point on that coordinate already exists.");
+            }
+            else
+            {
+
+
                 values = Vertex.makeContentValues(lat, lng);
                 try
                 {
@@ -274,11 +293,6 @@ public class MapsActivity extends FragmentActivity implements
                 {
                     Log.d(LOG_TAG, e.getMessage());
                 }
-
-            }
-            else
-            {
-                toastMsg("A point on that coordinate already exists.");
             }
 
 
@@ -347,8 +361,8 @@ public class MapsActivity extends FragmentActivity implements
             targetVertexLng = plottingMarkers.get(i+1).getPosition().longitude;
 
             // These vertices must already exist.
-            sourceVertexId = Vertex.getVertexId(db, sourceVertexLat, sourceVertexLng);
-            targetVertexId = Vertex.getVertexId(db, targetVertexLat, targetVertexLng);
+            sourceVertexId = Vertex.getVertexId(db, Double.toString(sourceVertexLat) , Double.toString(sourceVertexLng));
+            targetVertexId = Vertex.getVertexId(db, Double.toString(targetVertexLat), Double.toString(targetVertexLng));
 
             if(Edge.isEdgeExists(db, sourceVertexId, targetVertexId))
             {
@@ -1012,8 +1026,12 @@ public class MapsActivity extends FragmentActivity implements
                             {
                                 readMapVertex(false);
                             }
+                            else
+                            {
+                                MapsActivity.this.setDestinationMarker(latLng.latitude,latLng.longitude);
 
-                            MapsActivity.this.setDestinationMarker(latLng.latitude,latLng.longitude);
+                            }
+
                             // FOR TESTING
                             //String toastString = "Lat:" + latLng.latitude + ", Long:" + latLng.longitude;
                             //Toast.makeText(MapsActivity.this, toastString, Toast.LENGTH_SHORT).show();
@@ -1042,8 +1060,12 @@ public class MapsActivity extends FragmentActivity implements
                             {
                                 readMapVertex(false);
                             }
+                            else
+                            {
 
-                            MapsActivity.this.setOriginMarker(latLng.latitude, latLng.longitude);
+                                MapsActivity.this.setOriginMarker(latLng.latitude, latLng.longitude);
+                            }
+
                             // FOR TESTING
                             //String toastString = "Lat:" + latLng.latitude + ", Long:" + latLng.longitude;
                         }
@@ -1366,7 +1388,7 @@ public class MapsActivity extends FragmentActivity implements
 
     }
 
-    public void geoLocate(View view) throws IOException
+    /*public void geoLocate(View view) throws IOException
     {
         hideSoftKeyboard(view);
         EditText editTextLocation = (EditText) findViewById(R.id.editTextLocation);
@@ -1395,7 +1417,7 @@ public class MapsActivity extends FragmentActivity implements
 
         //Toast.makeText(this, locality, Toast.LENGTH_LONG).show();
 
-    }
+    }*/
 
 
     private void setMarker(String locality, String snippetString, double lat, double lng)
@@ -1523,8 +1545,11 @@ public class MapsActivity extends FragmentActivity implements
             {
                 readMapVertex(false);
             }
+            else
+            {
+                MapsActivity.this.setOriginMarker(location.getLatitude(), location.getLongitude());
 
-            MapsActivity.this.setOriginMarker(location.getLatitude(), location.getLongitude());
+            }
         }
     }
 
@@ -1536,7 +1561,10 @@ public class MapsActivity extends FragmentActivity implements
         {
             editVertexPanelEnable(true);
             editRoutesPanelEnable(false);
+            editLocationsPanelEnable(false);
+
             ((ToggleButton) findViewById(R.id.toggle_editRoutes)).setChecked(false);
+            ((ToggleButton) findViewById(R.id.toggle_editLocations)).setChecked(false);
         }
         else
         {
@@ -1551,11 +1579,30 @@ public class MapsActivity extends FragmentActivity implements
         {
             editRoutesPanelEnable(true);
             editVertexPanelEnable(false);
+            editLocationsPanelEnable(false);
+
             ((ToggleButton) findViewById(R.id.toggle_editVertex)).setChecked(false);
+            ((ToggleButton) findViewById(R.id.toggle_editLocations)).setChecked(false);
         }
         else
         {
             editRoutesPanelEnable(false);
+        }
+    }
+    public void onToggleEditLocationsClicked(View view)
+    {
+        boolean on = ((ToggleButton) view).isChecked();
+        if(on)
+        {
+            editLocationsPanelEnable(true);
+            editRoutesPanelEnable(false);
+            editVertexPanelEnable(false);
+            ((ToggleButton) findViewById(R.id.toggle_editVertex)).setChecked(false);
+            ((ToggleButton) findViewById(R.id.toggle_editRoutes)).setChecked(false);
+        }
+        else
+        {
+            editLocationsPanelEnable(false);
         }
     }
     private void editVertexPanelEnable(boolean visibility)
@@ -1598,6 +1645,22 @@ public class MapsActivity extends FragmentActivity implements
             editRoutesMode = false;
             layerEditRoutes.setVisibility(View.GONE);
             clearRoutePlotting();
+        }
+
+    }
+
+    private void editLocationsPanelEnable(boolean visibility)
+    {
+        View layerEditLocations = (View) findViewById(R.id.panel_editLocations);
+        if(visibility)
+        {
+            editLocationsMode = true;
+            layerEditLocations.setVisibility(View.VISIBLE);
+        }
+        else
+        {
+            editLocationsMode = false;
+            layerEditLocations.setVisibility(View.GONE);
         }
 
     }
@@ -1969,5 +2032,100 @@ public class MapsActivity extends FragmentActivity implements
     {
         TextView appMessageText = (TextView)findViewById(R.id.tv_appMessage);
         appMessageText.setText(text);
+    }
+
+
+    public void useDestinationMarkLocation(View view)
+    {
+        if(destinationMarker != null)
+        {
+            EditText etLat = (EditText)findViewById(R.id.editTextLatitude);
+            EditText etLng = (EditText)findViewById(R.id.editTextLongitude);
+
+            etLat.setText(Double.toString(destinationMarker.getPosition().latitude));
+            etLng.setText(Double.toString(destinationMarker.getPosition().longitude));
+
+        }
+        else
+        {
+            toastMsg("Set the destination marker first");
+        }
+    }
+    public void editLocationsCommit(View view)
+    {
+        JeepneysDbHelper dbHelper = new JeepneysDbHelper(this);
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+
+        EditText etLocationName = (EditText)findViewById(R.id.editTextLocationName);
+        EditText etLat = (EditText)findViewById(R.id.editTextLatitude);
+        EditText etLng = (EditText)findViewById(R.id.editTextLongitude);
+
+        String locationName = etLocationName.getText().toString().trim();
+        String lat = etLat.getText().toString().trim();
+        String lng = etLng.getText().toString().trim();
+
+        if(locationName.isEmpty())
+        {
+            toastMsg("input location name");
+            return;
+        }
+        if(lat.isEmpty())
+        {
+            toastMsg("input the latitude of the location");
+            return;
+        }
+        if(lng.isEmpty())
+        {
+            toastMsg("input the longitude of the location");
+            return;
+        }
+        BigDecimal latBd = new BigDecimal(lat);
+        BigDecimal lngBd = new BigDecimal(lng);
+        long vertexRowId = -1;
+        ContentValues values;
+        if(Vertex.isVertexCoordinateUnique(db, lat, lng ) )
+        {
+            setDebugText("Vertex already exists");
+            Log.d(LOG_TAG, "Vertex already exists");
+            // vertex already exist, use its id
+            vertexRowId = Vertex.getVertexId(db, lat, lng);
+        }
+        else
+        {
+
+
+            values = Vertex.makeContentValues(lat, lng);
+            try
+            {
+                vertexRowId = db.insertOrThrow(JeepneysContract.VertexEntry.TABLE_NAME, null, values);
+            }catch(SQLException e)
+            {
+                Log.d(LOG_TAG, e.getMessage());
+            }
+        }
+
+        long locationRowId = -1;
+        if(vertexRowId != -1)
+        {
+            values = net.krisg.riseabove.jeepneys.data.Location.makeContentValues(locationName, Vertex.getVertexId(db, lat, lng));
+            try
+            {
+                locationRowId = db.insertOrThrow(JeepneysContract.LocationEntry.TABLE_NAME, null, values);
+                if(locationRowId != -1)
+                {
+
+                    toastMsg("Location saved.");
+                }
+            }catch(SQLException e)
+            {
+                Log.d(LOG_TAG, e.getMessage());
+            }
+        }
+        else
+        {
+            toastMsg("Error in creation of new location point.");
+        }
+
+        db.close();
     }
 }

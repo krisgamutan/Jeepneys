@@ -12,10 +12,18 @@ import java.util.PriorityQueue;
  * Created by KrisEmmanuel on 9/30/2014.
  */
 public class Dijkstra {
+
+
+    public static PriorityQueue<DVertex> vertexQueue = new PriorityQueue<DVertex>();
+
     public static void computePaths(DVertex source)
     {
         source.minDistance = 0.;
-        PriorityQueue<DVertex> vertexQueue = new PriorityQueue<DVertex>();
+
+        vertexQueue = new PriorityQueue<DVertex>();
+
+        //vertexQueue.clear(); //added
+
         vertexQueue.add(source);
 
         while (!vertexQueue.isEmpty()) {
@@ -42,9 +50,11 @@ public class Dijkstra {
         }
     }
 
+    public static List<DVertex> path = new ArrayList<DVertex>();
+
     public static List<DVertex> getShortestPathTo(DVertex target)
     {
-        List<DVertex> path = new ArrayList<DVertex>();
+        path = new ArrayList<DVertex>();
         for (DVertex vertex = target; vertex != null; vertex = vertex.previous)
             path.add(vertex);
 

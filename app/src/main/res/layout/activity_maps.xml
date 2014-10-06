@@ -65,7 +65,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1">
 
-        <!--
+
         <EditText
             android:id="@+id/editTextLocation"
             android:layout_width="wrap_content"
@@ -73,7 +73,7 @@
             android:layout_gravity="center|center_vertical"
             android:ems="10"
             android:hint="@string/search"
-            />-->
+            />-
 
 
 
@@ -182,17 +182,10 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:onClick="editVertexClear"
-                        android:text="Clear"
+                        android:text="Clear Markers"
                         android:id="@+id/btn_editPointsClear"
                         />
-                    <Button
-                        android:gravity="right"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:onClick="editVertexClear"
-                        android:text="Reset"
-                        android:id="@+id/btn_editVertexReset"
-                        />
+
 
                     <Button
                         android:gravity="right"
@@ -298,6 +291,23 @@
                     android:layout_width="fill_parent"
                     android:layout_height="wrap_content" />
 
+                <EditText
+                    android:text=""
+                    android:hint="location category (schools,shopping malls,hospitals)"
+                    android:id="@+id/editTextLocationCategory"
+                    android:inputType="text"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content" />
+
+                <EditText
+                    android:text=""
+                    android:hint="description"
+                    android:id="@+id/editTextDescription"
+                    android:inputType="text"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content" />
+
+
                 <LinearLayout
                     android:layout_width="fill_parent"
                     android:layout_height="wrap_content">
@@ -365,7 +375,7 @@
                     android:id="@+id/toggle_autodetectOrigin"
                     android:textOn="Origin: GPS"
                     android:textOff="Origin: Manual"
-                    android:checked="true"
+                    android:checked="false"
                     android:text="Origin location"
                     android:onClick="onToggleAutodetectOriginClicked" />
 

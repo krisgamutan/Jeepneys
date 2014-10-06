@@ -5,12 +5,14 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
 import net.krisg.riseabove.jeepneys.data.JeepneysContract.JeepneyEntry;
+import net.krisg.riseabove.jeepneys.data.JeepneysContract.LocationCategoryEntry;
 import net.krisg.riseabove.jeepneys.data.JeepneysContract.LocationEntry;
 import net.krisg.riseabove.jeepneys.data.JeepneysContract.PathEntry;
 import net.krisg.riseabove.jeepneys.data.JeepneysContract.VertexEntry;
 import net.krisg.riseabove.jeepneys.data.JeepneysContract.RouteEntry;
 import net.krisg.riseabove.jeepneys.data.JeepneysContract.EdgeEntry;
 import net.krisg.riseabove.jeepneys.data.JeepneysContract.WaypointEntry;
+
 
 
 /**
@@ -40,14 +42,6 @@ public class JeepneysDbHelper extends SQLiteOpenHelper
                         VertexEntry.COLUMN_LONGITUDE + " TEXT NOT NULL" +
                         ");";
 
-        final String SQL_CREATE_LOCATION_TABLE =
-                "CREATE TABLE " + LocationEntry.TABLE_NAME + "(" +
-                        LocationEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
-                        LocationEntry.COLUMN_NAME + " TEXT NOT NULL," +
-                        LocationEntry.COLUMN_VERTEX_IDVERTEX + " INTEGER NOT NULL ," +
-                        "FOREIGN KEY(" + LocationEntry.COLUMN_VERTEX_IDVERTEX + ")" +
-                        "REFERENCES " + VertexEntry.TABLE_NAME + "(" + VertexEntry._ID + ")" +
-                        ");";
 
         final String SQL_CREATE_EDGE_TABLE =
                 "CREATE TABLE " + EdgeEntry.TABLE_NAME + "(" +
@@ -62,6 +56,14 @@ public class JeepneysDbHelper extends SQLiteOpenHelper
                         "FOREIGN KEY(" + EdgeEntry.COLUMN_VERTEX_IDVERTEXSOURCE + ")" +
                         "REFERENCES " + VertexEntry.TABLE_NAME + "(" + VertexEntry._ID + ")" +
                         ");";
+
+
+        final String SQL_CREATE_LOCATIONCATEGORY_TABLE =
+                "CREATE TABLE " + LocationCategoryEntry.TABLE_NAME + "(" +
+                        LocationCategoryEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
+                        LocationCategoryEntry.COLUMN_NAME + " TEXT" +
+                        ");";
+
 
         final String SQL_CREATE_JEEPNEY_TABLE =
                 "CREATE TABLE " + JeepneyEntry.TABLE_NAME + "(" +
@@ -98,23 +100,46 @@ public class JeepneysDbHelper extends SQLiteOpenHelper
 
 
 
+        final String SQL_CREATE_LOCATION_TABLE =
+                "CREATE TABLE " + LocationEntry.TABLE_NAME + "(" +
+                        LocationEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
+                        LocationEntry.COLUMN_NAME + " TEXT NOT NULL," +
+                        LocationEntry.COLUMN_VERTEX_IDVERTEX + " INTEGER NOT NULL ," +
+                        LocationEntry.COLUMN_LOCATIONCATEGORY_IDLOCATIONCATEGORY + " INTEGER NOT NULL," +
+                        LocationEntry.COLUMN_PHOTO1 + " BLOB," +
+                        LocationEntry.COLUMN_PHOTO2 + " BLOB," +
+                        LocationEntry.COLUMN_PHOTO3 + " BLOB," +
+                        LocationEntry.COLUMN_DESCRIPTION + " TEXT," +
+                        "FOREIGN KEY(" + LocationEntry.COLUMN_VERTEX_IDVERTEX + ")" +
+                        "REFERENCES " + VertexEntry.TABLE_NAME + "(" + VertexEntry._ID + ")," +
+                        "FOREIGN KEY(" + LocationEntry.COLUMN_LOCATIONCATEGORY_IDLOCATIONCATEGORY + ")" +
+                        "REFERENCES " + LocationCategoryEntry.TABLE_NAME + "(" + LocationCategoryEntry._ID + ")" +
+                        ");";
+
+
 
         db.execSQL(SQL_CREATE_ROUTE_TABLE);
-        db.execSQL(SQL_CREATE_JEEPNEY_TABLE);
         db.execSQL(SQL_CREATE_VERTEX_TABLE);
         db.execSQL(SQL_CREATE_EDGE_TABLE);
+        db.execSQL(SQL_CREATE_LOCATIONCATEGORY_TABLE);
+        db.execSQL(SQL_CREATE_JEEPNEY_TABLE);
         db.execSQL(SQL_CREATE_WAYPOINT_TABLE);
         db.execSQL(SQL_CREATE_PATH_TABLE);
         db.execSQL(SQL_CREATE_LOCATION_TABLE);
+
+
+
+        
 
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         db.execSQL("DROP TABLE IF EXISTS " + RouteEntry.TABLE_NAME);
-        db.execSQL("DROP TABLE IF EXISTS " + JeepneyEntry.TABLE_NAME);
         db.execSQL("DROP TABLE IF EXISTS " + VertexEntry.TABLE_NAME);
         db.execSQL("DROP TABLE IF EXISTS " + EdgeEntry.TABLE_NAME);
+        db.execSQL("DROP TABLE IF EXISTS " + LocationCategoryEntry.TABLE_NAME);
+        db.execSQL("DROP TABLE IF EXISTS " + JeepneyEntry.TABLE_NAME);
         db.execSQL("DROP TABLE IF EXISTS " + WaypointEntry.TABLE_NAME);
         db.execSQL("DROP TABLE IF EXISTS " + PathEntry.TABLE_NAME);
         db.execSQL("DROP TABLE IF EXISTS " + LocationEntry.TABLE_NAME);

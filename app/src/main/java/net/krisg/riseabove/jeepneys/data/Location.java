@@ -10,10 +10,21 @@ public class Location {
     private String name;
     private long idVertex;
 
-    public Location(long id, String name, long idVertex) {
+    private long idLocationCategory;
+    private byte[] photo1;
+    private byte[] photo2;
+    private byte[] photo3;
+    private String description;
+
+    public Location(long id, String name, long idVertex, long idLocationCategory, byte[] photo1, byte[] photo2, byte[] photo3, String description) {
         this.id = id;
         this.name = name;
         this.idVertex = idVertex;
+        this.idLocationCategory = idLocationCategory;
+        this.photo1 = photo1;
+        this.photo2 = photo2;
+        this.photo3 = photo3;
+        this.description = description;
     }
 
     public long getId() {
@@ -40,6 +51,46 @@ public class Location {
         this.idVertex = idVertex;
     }
 
+    public long getIdLocationCategory() {
+        return idLocationCategory;
+    }
+
+    public void setIdLocationCategory(long idLocationCategory) {
+        this.idLocationCategory = idLocationCategory;
+    }
+
+    public byte[] getPhoto1() {
+        return photo1;
+    }
+
+    public void setPhoto1(byte[] photo1) {
+        this.photo1 = photo1;
+    }
+
+    public byte[] getPhoto2() {
+        return photo2;
+    }
+
+    public void setPhoto2(byte[] photo2) {
+        this.photo2 = photo2;
+    }
+
+    public byte[] getPhoto3() {
+        return photo3;
+    }
+
+    public void setPhoto3(byte[] photo3) {
+        this.photo3 = photo3;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -61,11 +112,20 @@ public class Location {
         result = 31 * result + (int) (idVertex ^ (idVertex >>> 32));
         return result;
     }
-    public static ContentValues makeContentValues(String name, long idVertex)
+
+
+
+
+    public static ContentValues makeContentValues(String name, long idVertex, long idLocationCategory, String description)
     {
         ContentValues values = new ContentValues();
         values.put(JeepneysContract.LocationEntry.COLUMN_NAME, name);
         values.put(JeepneysContract.LocationEntry.COLUMN_VERTEX_IDVERTEX, idVertex);
+
+        values.put(JeepneysContract.LocationEntry.COLUMN_LOCATIONCATEGORY_IDLOCATIONCATEGORY, idLocationCategory);
+
+
+        values.put(JeepneysContract.LocationEntry.COLUMN_DESCRIPTION, description);
         return values;
     }
 
